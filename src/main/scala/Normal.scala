@@ -18,6 +18,7 @@ case class NormalVector(mu: VectorVariableLike, sigma: VectorVariableLike)(impli
     val norm: VectorVariableLike = log(tau / (2 * Math.PI.toFloat))
     sum(exponent + norm) / 2f
   }
+
 }
 
 case class NormalScalar(mu: ScalarVariableLike, sigma: ScalarVariableLike)(implicit model: Model) extends ScalarDistribution {

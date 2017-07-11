@@ -8,26 +8,69 @@ sealed trait VariableLike[V] {
 
 trait ScalarVariableLike extends VariableLike[Float] {
 
+  import Variable._
+
   private val upstream = this
 
-  def unary_-() = {
-    new ScalarVariable() {
-      override def eval(context: Context) = - context.eval(upstream)
+  def grad(scalar: ScalarVariableLike)(implicit model: Model): ScalarVariableLike = {
+    if (scalar == this) {
+      1.0f
+    } else {
+      0.0f
     }
   }
 
-  def +(other: ScalarVariableLike) = {
+  def grad(vector: VectorVariableLike)(implicit model: Model): VectorVariableLike = {
+    new VectorVariable(vector.length) {
+      override def eval(context: Context) = DenseVector.zeros(vector.length)
+    }
+  }
+
+  def unary_-(): ScalarVariableLike = {
     new ScalarVariable() {
-      override def eval(context: Context) =
+      override def eval(context: Context) = {
+        -context.eval(upstream)
+      }
+
+      override def grad(scalar: ScalarVariableLike)(implicit model: Model) = {
+        -upstream.grad(scalar)
+      }
+
+      override def grad(vector: VectorVariableLike)(implicit model: Model) = {
+        -upstream.grad(vector)
+      }
+    }
+  }
+
+  def +(other: ScalarVariableLike): ScalarVariableLike = {
+    new ScalarVariable() {
+      override def eval(context: Context) = {
         context.eval(upstream) + context.eval(other)
+      }
+
+      override def grad(scalar: ScalarVariableLike)(implicit model: Model) = {
+        upstream.grad(scalar) + other.grad(scalar)
+      }
+
+      override def grad(vector: VectorVariableLike)(implicit model: Model) = {
+        upstream.grad(vector) + other.grad(vector)
+      }
     }
   }
 
-  def +(other: VectorVariableLike) = {
+  def +(other: VectorVariableLike): VectorVariableLike = {
     new VectorVariable(other.length) {
       override def eval(context: Context) = {
         val upstreamValue = context.eval(upstream)
         context.eval(other) + upstreamValue
+      }
+
+      override def grad(scalar: ScalarVariableLike)(implicit model: Model) = {
+        upstream.grad(scalar) + other.grad(scalar)
+      }
+
+      override def grad(vector: VectorVariableLike)(implicit model: Model) = {
+        upstream.grad(vector) + other.grad(vector)
       }
     }
   }
@@ -79,6 +122,24 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float]] {
 
   private val upstream = this
 
+  def grad(scalar: ScalarVariableLike)(implicit model: Model): VectorVariableLike = {
+    new VectorVariable(length) {
+      override def eval(context: Context) = DenseVector.zeros(length)
+    }
+  }
+
+  def grad(vector: VectorVariableLike)(implicit model: Model): MatrixVariableLike = {
+    if (this == vector) {
+      new MatrixVariable(length, length) {
+        override def eval(context: Context) = DenseMatrix.eye(length)
+      }
+    } else {
+      new MatrixVariable(length, length) {
+        override def eval(context: Context) = DenseMatrix.zeros(length, length)
+      }
+    }
+  }
+
   def unary_-() = {
     new VectorVariable(length) {
       override def eval(context: Context) = - context.eval(upstream)
@@ -99,6 +160,16 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float]] {
     new VectorVariable(length) {
       override def eval(context: Context) = {
         context.eval(upstream) +:+ context.eval(other)
+      }
+    }
+  }
+
+  def +(other: MatrixVariableLike): MatrixVariableLike = {
+    assert(length == other.rows)
+
+    new MatrixVariable(length, other.cols) {
+      override def eval(context: Context) = {
+        context.eval(other)(::, breeze.linalg.*) +:+ context.eval(upstream)
       }
     }
   }
@@ -137,9 +208,28 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float]] {
 
 }
 
+trait MatrixVariableLike extends VariableLike[DenseMatrix[Float]] {
+  val rows: Int
+  val cols: Int
+
+  private val upstream = this
+
+  def +(other: MatrixVariableLike) = {
+    assert(rows == other.rows && cols == other.cols)
+
+    new MatrixVariable(rows, cols) {
+      override def eval(context: Context) = {
+        context.eval(upstream) + context.eval(other)
+      }
+    }
+  }
+}
+
 case class ScalarVariable() extends ScalarVariableLike
 
 case class VectorVariable(length: Int) extends VectorVariableLike
+
+case class MatrixVariable(rows: Int, cols: Int) extends MatrixVariableLike
 
 object Variable {
 
