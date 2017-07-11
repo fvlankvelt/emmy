@@ -6,7 +6,7 @@ sealed trait VariableLike[V] {
 
 }
 
-case class ScalarVariable() extends VariableLike[Float] {
+trait ScalarVariableLike extends VariableLike[Float] {
 
   private val upstream = this
 
@@ -16,14 +16,14 @@ case class ScalarVariable() extends VariableLike[Float] {
     }
   }
 
-  def +(other: ScalarVariable) = {
+  def +(other: ScalarVariableLike) = {
     new ScalarVariable() {
       override def eval(context: Context) =
         context.eval(upstream) + context.eval(other)
     }
   }
 
-  def +(other: VectorVariable) = {
+  def +(other: VectorVariableLike) = {
     new VectorVariable(other.length) {
       override def eval(context: Context) = {
         val upstreamValue = context.eval(upstream)
@@ -32,7 +32,7 @@ case class ScalarVariable() extends VariableLike[Float] {
     }
   }
 
-  def -(other: ScalarVariable) = {
+  def -(other: ScalarVariableLike) = {
     new ScalarVariable() {
       override def eval(context: Context) = {
         context.eval(upstream) - context.eval(other)
@@ -40,14 +40,14 @@ case class ScalarVariable() extends VariableLike[Float] {
     }
   }
 
-  def *(other: ScalarVariable) = {
+  def *(other: ScalarVariableLike) = {
     new ScalarVariable() {
       override def eval(context: Context) =
         context.eval(upstream) * context.eval(other)
     }
   }
 
-  def /(other: ScalarVariable) = {
+  def /(other: ScalarVariableLike) = {
     new ScalarVariable() {
       override def eval(context: Context) = {
         context.eval(upstream) / context.eval(other)
@@ -55,7 +55,7 @@ case class ScalarVariable() extends VariableLike[Float] {
     }
   }
 
-  def /(other: VectorVariable) = {
+  def /(other: VectorVariableLike) = {
     new VectorVariable(other.length) {
       override def eval(context: Context) = {
         context.eval(upstream) /:/ context.eval(other)
@@ -63,7 +63,7 @@ case class ScalarVariable() extends VariableLike[Float] {
     }
   }
 
-  def **(other: ScalarVariable) = {
+  def **(other: ScalarVariableLike) = {
     new ScalarVariable() {
       override def eval(context: Context) = {
         Math.pow(context.eval(upstream), context.eval(other)).toFloat
@@ -73,7 +73,9 @@ case class ScalarVariable() extends VariableLike[Float] {
 
 }
 
-case class VectorVariable(length: Int) extends VariableLike[DenseVector[Float]] {
+trait VectorVariableLike extends VariableLike[DenseVector[Float]] {
+
+  val length: Int
 
   private val upstream = this
 
@@ -83,7 +85,7 @@ case class VectorVariable(length: Int) extends VariableLike[DenseVector[Float]] 
     }
   }
 
-  def +(other: ScalarVariable) = {
+  def +(other: ScalarVariableLike) = {
     new VectorVariable(length) {
 
       override def eval(context: Context) = {
@@ -93,7 +95,7 @@ case class VectorVariable(length: Int) extends VariableLike[DenseVector[Float]] 
     }
   }
 
-  def +(other: VectorVariable) = {
+  def +(other: VectorVariableLike) = {
     new VectorVariable(length) {
       override def eval(context: Context) = {
         context.eval(upstream) +:+ context.eval(other)
@@ -101,7 +103,7 @@ case class VectorVariable(length: Int) extends VariableLike[DenseVector[Float]] 
     }
   }
 
-  def -(other: VectorVariable) = {
+  def -(other: VectorVariableLike) = {
     new VectorVariable(length) {
       override def eval(context: Context) = {
         context.eval(upstream) -:- context.eval(other)
@@ -109,7 +111,7 @@ case class VectorVariable(length: Int) extends VariableLike[DenseVector[Float]] 
     }
   }
 
-  def *(other: VectorVariable) = {
+  def *(other: VectorVariableLike) = {
     new VectorVariable(length) {
       override def eval(context: Context) = {
         context.eval(upstream) *:* context.eval(other)
@@ -117,7 +119,15 @@ case class VectorVariable(length: Int) extends VariableLike[DenseVector[Float]] 
     }
   }
 
-  def **(other: ScalarVariable) = {
+  def /(other: ScalarVariableLike) = {
+    new VectorVariable(length) {
+      override def eval(context: Context) = {
+        context.eval(upstream) /:/ context.eval(other)
+      }
+    }
+  }
+
+  def **(other: ScalarVariableLike) = {
     new VectorVariable(length) {
       override def eval(context: Context) = {
         context.eval(upstream) ^:^ context.eval(other)
@@ -126,6 +136,10 @@ case class VectorVariable(length: Int) extends VariableLike[DenseVector[Float]] 
   }
 
 }
+
+case class ScalarVariable() extends ScalarVariableLike
+
+case class VectorVariable(length: Int) extends VectorVariableLike
 
 object Variable {
 

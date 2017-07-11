@@ -3,9 +3,9 @@ trait Op {
 }
 
 trait Distribution extends Op {
-  def logp(): VariableLike[Float]
+  def logp(): ScalarVariableLike
 }
 
-trait VectorDistribution extends VectorVariable with Distribution
+trait VectorDistribution extends VectorVariableLike with Distribution
 
-trait ScalarDistribution extends ScalarVariable with Distribution
+trait ScalarDistribution extends ScalarVariableLike with Distribution

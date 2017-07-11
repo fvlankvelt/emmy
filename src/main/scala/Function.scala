@@ -1,6 +1,6 @@
 object Function {
 
-  def log(variable: VectorVariable): VectorVariable =
+  def log(variable: VectorVariableLike): VectorVariable =
     new VectorVariable(variable.length) {
       override def eval(context: Context) = {
         val upstream = context.eval(variable)
@@ -8,7 +8,7 @@ object Function {
       }
     }
 
-  def log(variable: ScalarVariable): ScalarVariable =
+  def log(variable: ScalarVariableLike): ScalarVariable =
     new ScalarVariable() {
       override def eval(context: Context) = {
         val upstream = context.eval(variable)
@@ -16,7 +16,7 @@ object Function {
       }
     }
 
-  def sum(variable: VectorVariable): ScalarVariable =
+  def sum(variable: VectorVariableLike): ScalarVariable =
     new ScalarVariable {
       override def eval(context: Context) = {
         val upstream = context.eval(variable)

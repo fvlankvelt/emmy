@@ -12,7 +12,7 @@ class LinearRegressionSpec extends FlatSpec {
     val X = VectorVariable(2)
 
     val a = Normal(mu=0.0f, sigma=10.0f)
-    val b = Normal(mu=DenseVector(0.0f, 0.0f), sigma=DenseVector(10.0f))
+    val b = Normal(mu=DenseVector(0.0f, 0.0f), sigma=DenseVector(10.0f, 10.0f))
     val Y = a + sum(b * X)
 
     val approximation = model.fit(Map(
