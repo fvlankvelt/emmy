@@ -33,6 +33,7 @@ case class NormalScalar(mu: ScalarVariableLike, sigma: ScalarVariableLike)(impli
   def logp() = {
     (-tau * (this - mu) ** 2.0f + log(tau / (2 * Math.PI.toFloat))) / 2f
   }
+
 }
 
 object Normal {
