@@ -1,3 +1,5 @@
+package pp
+
 import breeze.linalg.Axis
 
 object Function {

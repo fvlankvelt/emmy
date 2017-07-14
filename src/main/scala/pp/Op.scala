@@ -1,8 +1,6 @@
-trait Op {
-  val in: Seq[VariableLike[_]]
-}
+package pp
 
-trait Distribution extends Op {
+trait Distribution {
   def logp(): ScalarVariableLike
 }
 
