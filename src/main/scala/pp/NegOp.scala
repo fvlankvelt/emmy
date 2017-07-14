@@ -22,11 +22,11 @@ object NegOp {
           -context.eval(vector)
         }
 
-        override def grad(scalar: ScalarVariableLike)(implicit model: Model) = {
+        override def grad(scalar: ScalarVariableLike) = {
           vector.grad(scalar).map(-_)
         }
 
-        override def grad(vector: VectorVariableLike)(implicit model: Model) = {
+        override def grad(vector: VectorVariableLike) = {
           vector.grad(vector).map(-_)
         }
       }
@@ -34,17 +34,17 @@ object NegOp {
 
   implicit object ScalarNegOp extends NegOp[Float, ScalarVariableLike] {
     override def apply(scalar: ScalarVariableLike) =
-      new ScalarVariable() {
+      new ScalarVariable("-!") {
         override def eval(context: Context) = {
           val value = context.eval(scalar)
           -value
         }
 
-        override def grad(scalar: ScalarVariableLike)(implicit model: Model) = {
+        override def grad(scalar: ScalarVariableLike) = {
           scalar.grad(scalar).map(-_)
         }
 
-        override def grad(vector: VectorVariableLike)(implicit model: Model) = {
+        override def grad(vector: VectorVariableLike) = {
           scalar.grad(vector).map(-_)
         }
       }

@@ -1,6 +1,6 @@
 import breeze.linalg._
 import org.scalatest.FlatSpec
-import pp.{Assignment, Model, Normal, VectorVariable}
+import pp._
 
 class LinearRegressionSpec extends FlatSpec {
 
@@ -14,19 +14,35 @@ class LinearRegressionSpec extends FlatSpec {
 
     val a = Normal(mu = 3.0f, sigma = 10.0f)
     val b = Normal(mu = DenseVector(0.0f, 0.0f), sigma = DenseVector(10.0f, 10.0f))
-    val Y = a + sum(b * X)
+    val sigma = Gamma(1.0f, 1.0f)
 
-    val context = model.context.copy(variables = Seq(Assignment(X, DenseVector(1.0f, 2.0f))))
+    val mu : ScalarVariableLike = a + sum(b * X)
+    val Y = Normal(mu = mu, sigma = sigma)
+    val logp = Y.logp() + (a.logp() + b.logp() + sigma.logp())
+//    val logp = Y.logp()
 
-    val dYda = Y.grad(a)
+    val context = model.context
+      .copy(variables = Seq(
+        Assignment(X, DenseVector(1.0f, 2.0f)),
+        Assignment(Y, 0.5f),
+        Assignment(sigma, 0.5f),
+        Assignment(a, 1.0f),
+        Assignment(b, DenseVector(1.0f, 0.5f))
+      ))
+
+    val logpVal = logp.eval(context)
+
+    val dYda = logp.grad(a)
     assert(dYda.isDefined)
     val dYdaVal = context.eval(dYda.get)
-    assert(dYdaVal == 1.0f)
+    assert(dYdaVal == 25.04f)
 
-    val dYdb = Y.grad(b)
+    /*
+    val dYdb = logp.grad(b)
     assert(dYdb.isDefined)
     val dYdbVal = context.eval(dYdb.get)
     assert(dYdbVal == DenseVector(1.0f, 2.0f))
+    */
 
     val approximation = model.fit(Seq(
       Map(

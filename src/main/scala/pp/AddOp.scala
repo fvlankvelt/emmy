@@ -30,12 +30,12 @@ object AddOp {
 
   implicit object ScalarAddOp extends AddOp[Float, ScalarVariableLike] {
     override def apply(left: ScalarVariableLike, right: ScalarVariableLike) =
-      new ScalarVariable() {
+      new ScalarVariable("+") {
         override def eval(context: Context) = {
           context.eval(left) + context.eval(right)
         }
 
-        override def grad(scalar: ScalarVariableLike)(implicit model: Model) = {
+        override def grad(scalar: ScalarVariableLike) = {
           val upGrad = left.grad(scalar)
           val otGrad = right.grad(scalar)
           (upGrad, otGrad) match {
@@ -45,7 +45,7 @@ object AddOp {
           }
         }
 
-        override def grad(vector: VectorVariableLike)(implicit model: Model) = {
+        override def grad(vector: VectorVariableLike) = {
           val upGrad = left.grad(vector)
           val otGrad = right.grad(vector)
           (upGrad, otGrad) match {

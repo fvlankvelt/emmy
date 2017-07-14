@@ -1,5 +1,7 @@
 package pp
 
+import scala.collection.mutable
+
 
 sealed trait VariableType
 case object Constant extends VariableType
@@ -10,7 +12,8 @@ case class Assignment[K, T <: VariableLike[K, T]](key: VariableLike[K, T], value
 
 case class Context
 (
-  var variables: Seq[Assignment[_, _]] = Seq.empty
+  var variables: Seq[Assignment[_, _]] = Seq.empty,
+  var stack: mutable.Stack[VariableLike[_, _]] = mutable.Stack.newBuilder.result()
 ) {
   def eval[K, T <: VariableLike[K, T]](variable: VariableLike[K, T]): K = {
     val result =
@@ -18,7 +21,12 @@ case class Context
         .find(_.key eq variable)
         .map(_.value)
         .getOrElse {
+          if (stack.exists(_ eq variable)) {
+            throw new Exception
+          }
+          stack.push(variable)
           val value = variable.eval(this)
+          stack.pop()
           variables :+= Assignment(variable, value)
           value
         }.asInstanceOf[K]

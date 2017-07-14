@@ -1,7 +1,7 @@
 package pp
 
 
-case class NormalVector(mu: VectorVariableLike, sigma: VectorVariableLike)(implicit model: Model) extends VectorDistribution {
+case class NormalVector(mu: VectorVariableLike, sigma: VectorVariableLike) extends VectorDistribution {
 
   assert(mu.length == sigma.length)
 
@@ -20,7 +20,7 @@ case class NormalVector(mu: VectorVariableLike, sigma: VectorVariableLike)(impli
 
 }
 
-case class NormalScalar private(mu: ScalarVariableLike, sigma: ScalarVariableLike)(implicit model: Model) extends ScalarDistribution {
+case class NormalScalar private(mu: ScalarVariableLike, sigma: ScalarVariableLike) extends ScalarDistribution {
 
   import Function._
   import Variable._
@@ -35,11 +35,11 @@ case class NormalScalar private(mu: ScalarVariableLike, sigma: ScalarVariableLik
 
 object Normal {
 
-  def apply(mu: VectorVariableLike, sigma: VectorVariableLike)(implicit model: Model) = {
+  def apply(mu: VectorVariableLike, sigma: VectorVariableLike) = {
     NormalVector(mu, sigma)
   }
 
-  def apply(mu: ScalarVariableLike, sigma: ScalarVariableLike)(implicit model: Model) = {
+  def apply(mu: ScalarVariableLike, sigma: ScalarVariableLike) = {
     NormalScalar(mu, sigma)
   }
 

@@ -8,11 +8,10 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
 
   val length: Int
 
-  private val upstream = this
 
-  def grad(scalar: ScalarVariableLike)(implicit model: Model): Option[VectorVariableLike] = None
+  def grad(scalar: ScalarVariableLike): Option[VectorVariableLike] = None
 
-  def grad(vector: VectorVariableLike)(implicit model: Model): Option[MatrixVariableLike] = {
+  def grad(vector: VectorVariableLike): Option[MatrixVariableLike] = {
     if (this == vector) {
       Some(new MatrixVariable(length, length) {
         override def eval(context: Context) = DenseMatrix.eye(length)
@@ -23,6 +22,7 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
   }
 
   def toMatrix(cols: Int) = {
+    val upstream = this
     new MatrixVariable(length, cols) {
       override def eval(context: Context) = {
         context.eval(upstream) * DenseVector.ones[Float](cols).t
@@ -32,6 +32,7 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
 
 
   def +(other: ScalarVariableLike) = {
+    val upstream = this
     new VectorVariable(length) {
 
       override def eval(context: Context) = {
@@ -43,6 +44,7 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
 
   def +(other: MatrixVariableLike): MatrixVariableLike = {
     assert(length == other.rows)
+    val upstream = this
 
     new MatrixVariable(length, other.cols) {
       override def eval(context: Context) = {
@@ -52,6 +54,7 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
   }
 
   def -(other: VectorVariableLike) = {
+    val upstream = this
     new VectorVariable(length) {
       override def eval(context: Context) = {
         context.eval(upstream) -:- context.eval(other)
@@ -61,12 +64,13 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
 
   def *(other: VectorVariableLike) = {
     assert (length == other.length)
+    val upstream = this
     new VectorVariable(length) {
       override def eval(context: Context) = {
         context.eval(upstream) *:* context.eval(other)
       }
 
-      override def grad(vector: VectorVariableLike)(implicit model: Model) = {
+      override def grad(vector: VectorVariableLike) = {
         val upGrad = upstream.grad(vector).map { upstreamMat =>
             new MatrixVariable(other.length, vector.length) {
               override def eval(context: Context) =
@@ -95,6 +99,7 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
   }
 
   def /(other: ScalarVariableLike) = {
+    val upstream = this
     new VectorVariable(length) {
       override def eval(context: Context) = {
         context.eval(upstream) /:/ context.eval(other)
@@ -103,6 +108,7 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
   }
 
   def **(other: ScalarVariableLike) = {
+    val upstream = this
     new VectorVariable(length) {
       override def eval(context: Context) = {
         context.eval(upstream) ^:^ context.eval(other)
