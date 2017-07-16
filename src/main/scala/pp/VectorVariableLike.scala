@@ -53,15 +53,6 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
     }
   }
 
-  def -(other: VectorVariableLike) = {
-    val upstream = this
-    new VectorVariable(length) {
-      override def eval(context: Context) = {
-        context.eval(upstream) -:- context.eval(other)
-      }
-    }
-  }
-
   def *(other: VectorVariableLike) = {
     assert (length == other.length)
     val upstream = this

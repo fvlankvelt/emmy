@@ -61,15 +61,6 @@ trait ScalarVariableLike extends VariableLike[Float, ScalarVariableLike] {
     }
   }
 
-  def -(other: ScalarVariableLike) = {
-    val upstream = this
-    new ScalarVariable("-") {
-      override def eval(context: Context) = {
-        context.eval(upstream) - context.eval(other)
-      }
-    }
-  }
-
   def *(other: ScalarVariableLike): ScalarVariableLike = {
     val upstream = this
     new ScalarVariable("*") {

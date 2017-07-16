@@ -35,14 +35,12 @@ class LinearRegressionSpec extends FlatSpec {
     val dYda = logp.grad(a)
     assert(dYda.isDefined)
     val dYdaVal = context.eval(dYda.get)
-    assert(dYdaVal == 25.04f)
+    assert(dYdaVal == 65.0398f)
 
-    /*
     val dYdb = logp.grad(b)
     assert(dYdb.isDefined)
     val dYdbVal = context.eval(dYdb.get)
     assert(dYdbVal == DenseVector(1.0f, 2.0f))
-    */
 
     val approximation = model.fit(Seq(
       Map(
