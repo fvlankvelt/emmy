@@ -16,12 +16,15 @@ trait VariableLike[V, T <: VariableLike[V, T]] {
 
   def +(other: T)(implicit op: AddOp[V, T]) = op(repr, other)
 
-  def +[W, O <: VariableLike[W, O]](other: O)(implicit op: AddOp[V, T], widen: Widen[O, T]) = op(repr, widen(other, repr))
+//  def +[W, O <: VariableLike[W, O]](other: O)(implicit op: AddOp[V, T], widen: Widen[O, T]) = op(repr, widen(other, repr))
 
   def -(other: T)(implicit op: SubOp[V, T]) = op(repr, other)
 
-  def -[W, O <: VariableLike[W, O]](other: O)(implicit op: SubOp[V, T], widen: Widen[O, T]) = op(repr, widen(other, repr))
+//  def -[W, O <: VariableLike[W, O]](other: O)(implicit op: SubOp[V, T], widen: Widen[O, T]) = op(repr, widen(other, repr))
 
+  def *(other: T)(implicit op: TimesOp[V, T]) = op(repr, other)
+
+  def *[W, O <: VariableLike[W, O]](other: O)(implicit op: TimesOp[V, T], widen: Widen[O, T]) = op(repr, widen(other, repr))
 }
 
 object VariableLike {
@@ -43,6 +46,12 @@ object VariableLike {
   implicit object scalarToVector extends Widen[ScalarVariableLike, VectorVariableLike] {
     override def apply(scalar: ScalarVariableLike, hint: VectorVariableLike) = {
       scalar.toVector(hint.length)
+    }
+  }
+
+  implicit object vectorToMatrix extends Widen[VectorVariableLike, MatrixVariableLike] {
+    override def apply(scalar: VectorVariableLike, hint: MatrixVariableLike) = {
+      scalar.toMatrix(hint.cols)
     }
   }
 

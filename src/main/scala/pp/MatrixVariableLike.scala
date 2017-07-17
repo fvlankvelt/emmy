@@ -10,6 +10,8 @@ trait MatrixVariableLike extends VariableLike[DenseMatrix[Float], MatrixVariable
 
   private val upstream = this
 
+  def grad(scalar: ScalarVariableLike): Option[MatrixVariableLike] = None
+
   def transpose: MatrixVariableLike = {
     val upstream = this
     new MatrixVariable(cols, rows) {

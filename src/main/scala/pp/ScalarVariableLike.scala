@@ -37,60 +37,6 @@ trait ScalarVariableLike extends VariableLike[Float, ScalarVariableLike] {
     }
   }
 
-  /*
-  def +(other: VectorVariableLike): VectorVariableLike = {
-    val upstream = this
-    new VectorVariable(other.length) {
-      override def eval(context: Context) = {
-        val reprValue = context.eval(upstream)
-        context.eval(other) + reprValue
-      }
-
-      override def grad(scalar: ScalarVariableLike) = {
-        val upGrad = upstream.grad(scalar)
-        val otGrad = other.grad(scalar)
-        (upGrad, otGrad) match {
-          case (None, _) => otGrad
-          case (_, None) => upGrad.map { _.toVector(other.length) }
-          case _ => Some(upGrad.get + otGrad.get)
-        }
-      }
-
-      override def grad(vector: VectorVariableLike) = {
-        val upGrad = upstream.grad(vector)
-        val otGrad = other.grad(vector)
-        (upGrad, otGrad) match {
-          case (None, _) => otGrad
-          case (_, None) => upGrad.map { _.toMatrix(vector.length) }
-          case _ => Some(upGrad.get + otGrad.get)
-        }
-      }
-    }
-  }
-  */
-
-  def *(other: ScalarVariableLike): ScalarVariableLike = {
-    val upstream = this
-    new ScalarVariable("*") {
-      override def eval(context: Context) =
-        context.eval(upstream) * context.eval(other)
-
-      override def grad(scalar: ScalarVariableLike) = {
-        val upGrad = upstream.grad(scalar).map { g =>
-          g * other
-        }
-        val otGrad = other.grad(scalar).map { g =>
-          upstream * g
-        }
-        (upGrad, otGrad) match {
-          case (None, _) => otGrad
-          case (_, None) => upGrad
-          case _ => Some(upGrad.get + otGrad.get)
-        }
-      }
-    }
-  }
-
   def /(other: ScalarVariableLike): ScalarVariableLike = {
     val upstream = this
     new ScalarVariable("/") {
