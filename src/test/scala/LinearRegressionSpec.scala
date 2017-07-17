@@ -4,7 +4,6 @@ import pp._
 
 class LinearRegressionSpec extends FlatSpec {
 
-  import pp.Variable._
   import pp.Function._
 
   "A model" should "contain a distribution" in {

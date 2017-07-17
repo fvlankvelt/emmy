@@ -8,7 +8,6 @@ case class NormalVector(mu: VectorVariableLike, sigma: VectorVariableLike) exten
   val length = mu.length
 
   import Function._
-  import Variable._
 
   private val tau : VectorVariableLike = 1.0f / (sigma * sigma)
 
@@ -23,7 +22,6 @@ case class NormalVector(mu: VectorVariableLike, sigma: VectorVariableLike) exten
 case class NormalScalar private(mu: ScalarVariableLike, sigma: ScalarVariableLike) extends ScalarDistribution {
 
   import Function._
-  import Variable._
 
   private val tau = 1.0f / (sigma * sigma)
 

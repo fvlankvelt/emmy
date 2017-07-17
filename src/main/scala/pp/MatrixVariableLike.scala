@@ -10,6 +10,15 @@ trait MatrixVariableLike extends VariableLike[DenseMatrix[Float], MatrixVariable
 
   private val upstream = this
 
+  def transpose: MatrixVariableLike = {
+    val upstream = this
+    new MatrixVariable(cols, rows) {
+      override def eval(context: Context) = {
+        context.eval(upstream).t
+      }
+    }
+  }
+
   def mvp(vector: VectorVariableLike) = {
     assert(cols == vector.length)
     new VectorVariable(rows) {

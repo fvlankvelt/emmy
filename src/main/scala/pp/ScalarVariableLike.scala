@@ -4,10 +4,7 @@ import breeze.linalg._
 
 trait ScalarVariableLike extends VariableLike[Float, ScalarVariableLike] {
 
-  override def repr : ScalarVariableLike = this
-
-
-  import Variable._
+  override def repr: ScalarVariableLike = this
 
   def grad(scalar: ScalarVariableLike): Option[ScalarVariableLike] = {
     if (scalar == this) {
@@ -21,16 +18,26 @@ trait ScalarVariableLike extends VariableLike[Float, ScalarVariableLike] {
     None
   }
 
-  def toVector(length: Int) = {
+  def toVector(length: Int): VectorVariableLike = {
     val upstream = this
     new VectorVariable(length) {
       override def eval(context: Context) = {
         val value = context.eval(upstream)
         DenseVector.fill(length, value)
       }
+
+      override def grad(scalar: ScalarVariableLike) = {
+        upstream.grad(scalar).map(_.toVector(length))
+      }
+
+      override def grad(vector: VectorVariableLike) = {
+        upstream.grad(vector).map(_.toMatrix(length).transpose)
+      }
+
     }
   }
 
+  /*
   def +(other: VectorVariableLike): VectorVariableLike = {
     val upstream = this
     new VectorVariable(other.length) {
@@ -60,6 +67,7 @@ trait ScalarVariableLike extends VariableLike[Float, ScalarVariableLike] {
       }
     }
   }
+  */
 
   def *(other: ScalarVariableLike): ScalarVariableLike = {
     val upstream = this
@@ -125,7 +133,8 @@ trait ScalarVariableLike extends VariableLike[Float, ScalarVariableLike] {
       override def grad(scalar: ScalarVariableLike) = {
         import Function._
         val upGrad = upstream.grad(scalar).map { g =>
-          g * other * (upstream ** (other - 1.0f))
+          val exp = other - 1.0f
+          g * other * (upstream ** exp)
         }
         val otGrad = other.grad(scalar).map { g =>
           g * log(upstream) * (upstream ** other)
