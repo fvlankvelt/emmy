@@ -13,6 +13,16 @@ object AddOp {
         override def eval(context: Context) = {
           context.eval(left) +:+ context.eval(right)
         }
+
+        override def grad(scalar: ScalarVariableLike) = {
+          val upGrad = left.grad(scalar)
+          val otGrad = right.grad(scalar)
+          (upGrad, otGrad) match {
+            case (None, _) => otGrad
+            case (_, None) => upGrad
+            case _ => Some(otGrad.get + upGrad.get)
+          }
+        }
       }
     }
   }
@@ -23,6 +33,26 @@ object AddOp {
       new VectorVariable(self.length) {
         override def eval(context: Context) = {
           context.eval(self) +:+ context.eval(other)
+        }
+
+        override def grad(scalar: ScalarVariableLike) = {
+          val upGrad = self.grad(scalar)
+          val otGrad = other.grad(scalar)
+          (upGrad, otGrad) match {
+            case (None, _) => otGrad
+            case (_, None) => upGrad
+            case _ => Some(otGrad.get + upGrad.get)
+          }
+        }
+
+        override def grad(vector: VectorVariableLike) = {
+          val upGrad = self.grad(vector)
+          val otGrad = other.grad(vector)
+          (upGrad, otGrad) match {
+            case (None, _) => otGrad
+            case (_, None) => upGrad
+            case _ => Some(otGrad.get + upGrad.get)
+          }
         }
       }
     }
@@ -54,6 +84,7 @@ object AddOp {
             case _ => Some(otGrad.get + upGrad.get)
           }
         }
+
       }
   }
 
