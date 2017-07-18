@@ -18,8 +18,8 @@ class LinearRegressionSpec extends FlatSpec {
 //    val mu : ScalarVariableLike = a + sum(b * X)
     val mu : ScalarVariableLike = sum(b * X)
     val Y = Normal(mu = mu, sigma = sigma)
-//    val logp = Y.logp() + (a.logp() + b.logp() + sigma.logp())
-    val logp = Y.logp()
+    val logp = Y.logp() + (a.logp() + b.logp() + sigma.logp())
+//    val logp = Y.logp()
 
     val context = model.context
       .copy(variables = Seq(

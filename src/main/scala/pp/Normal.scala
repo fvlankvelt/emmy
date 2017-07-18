@@ -12,7 +12,7 @@ case class NormalVector(mu: VectorVariableLike, sigma: VectorVariableLike) exten
   private val tau : VectorVariableLike = VariableLike.toScalar(1.0f).toVector(length) / (sigma * sigma)
 
   def logp() = {
-    val exponent = -tau * (this - mu) ** 2.0f
+    val exponent = -tau * (this - mu) ** VariableLike.toScalar(2.0f).toVector(length)
     val norm: VectorVariableLike = log(tau / VariableLike.toScalar(2 * Math.PI.toFloat).toVector(length))
     sum(exponent + norm) / 2f
   }

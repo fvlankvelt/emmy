@@ -36,30 +36,4 @@ trait ScalarVariableLike extends VariableLike[Float, ScalarVariableLike] {
 
     }
   }
-
-  def **(other: ScalarVariableLike): ScalarVariableLike = {
-    val upstream = this
-    new ScalarVariable("**") {
-      override def eval(context: Context) = {
-        Math.pow(context.eval(upstream), context.eval(other)).toFloat
-      }
-
-      override def grad(scalar: ScalarVariableLike) = {
-        import Function._
-        val upGrad = upstream.grad(scalar).map { g =>
-          val exp = other - 1.0f
-          g * other * (upstream ** exp)
-        }
-        val otGrad = other.grad(scalar).map { g =>
-          g * log(upstream) * (upstream ** other)
-        }
-        (upGrad, otGrad) match {
-          case (None, _) => otGrad
-          case (_, None) => upGrad
-          case _ => Some(upGrad.get + otGrad.get)
-        }
-      }
-    }
-  }
-
 }

@@ -4,14 +4,6 @@ import breeze.linalg.Axis
 
 object Function {
 
-  def log(variable: VectorVariableLike): VectorVariable =
-    new VectorVariable(variable.length) {
-      override def eval(context: Context) = {
-        val upstream = context.eval(variable)
-        breeze.numerics.log(upstream)
-      }
-    }
-
   def log(variable: ScalarVariableLike): ScalarVariable =
     new ScalarVariable("log") {
       override def eval(context: Context) = {
@@ -25,6 +17,22 @@ object Function {
 
       override def grad(vector: VectorVariableLike) = {
         variable.grad(vector).map { _ / variable.toVector(vector.length) }
+      }
+    }
+
+  def log(variable: VectorVariableLike): VectorVariable =
+    new VectorVariable(variable.length) {
+      override def eval(context: Context) = {
+        val upstream = context.eval(variable)
+        breeze.numerics.log(upstream)
+      }
+
+      override def grad(scalar: ScalarVariableLike) = {
+        variable.grad(scalar).map { _ / variable }
+      }
+
+      override def grad(vector: VectorVariableLike) = {
+        variable.grad(vector).map { _ / variable.toMatrix(vector.length) }
       }
     }
 
@@ -50,6 +58,14 @@ object Function {
         val upstream = context.eval(variable)
         breeze.numerics.digamma(upstream.toDouble).toFloat
       }
+
+      override def grad(scalar: ScalarVariableLike) = {
+        throw new NotImplementedError()
+      }
+
+      override def grad(vector: VectorVariableLike) = {
+        throw new NotImplementedError()
+      }
     }
 
 
@@ -65,14 +81,15 @@ object Function {
       }
 
       override def grad(vector: VectorVariableLike) = {
-        variable.grad(vector).map { mat =>
-          new VectorVariable(variable.length) {
-            override def eval(context: Context) = {
-              val matVal = context.eval(mat)
-              breeze.linalg.sum(matVal, Axis._0).t
-            }
-          }
-        }
+        variable.grad(vector).map { mat => sum(mat.transpose) }
+      }
+    }
+
+  def sum(variable: MatrixVariableLike): VectorVariableLike =
+    new VectorVariable(variable.rows) {
+      override def eval(context: Context) = {
+        val matVal = context.eval(variable)
+        breeze.linalg.sum(matVal, Axis._1)
       }
     }
 }

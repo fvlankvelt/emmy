@@ -27,6 +27,8 @@ trait VariableLike[V, T <: VariableLike[V, T]] {
 //  def *[W, O <: VariableLike[W, O]](other: O)(implicit op: MulOp[V, T], widen: Widen[O, T]) = op(repr, widen(other, repr))
 
   def /(other: T)(implicit op: DivOp[V, T]) = op(repr, other)
+
+  def **(other: T)(implicit op: PowOp[V, T]) = op(repr, other)
 }
 
 object VariableLike {
