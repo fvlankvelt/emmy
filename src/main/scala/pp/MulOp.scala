@@ -2,11 +2,11 @@ package pp
 
 import breeze.linalg.{DenseMatrix, DenseVector}
 
-trait TimesOp[V, T <: VariableLike[V, T]] extends ((T, T) => T)
+trait MulOp[V, T <: VariableLike[V, T]] extends ((T, T) => T)
 
-object TimesOp {
+object MulOp {
 
-  implicit object MatrixTimesOp extends TimesOp[DenseMatrix[Float], MatrixVariableLike] {
+  implicit object MatrixMulOp extends MulOp[DenseMatrix[Float], MatrixVariableLike] {
     override def apply(left: MatrixVariableLike, right: MatrixVariableLike) = {
       assert(left.rows == right.rows && left.cols == right.cols)
       new MatrixVariable(left.rows, left.cols) {
@@ -27,7 +27,7 @@ object TimesOp {
     }
   }
 
-  implicit object VectorTimesOp extends TimesOp[DenseVector[Float], VectorVariableLike] {
+  implicit object VectorMulOp extends MulOp[DenseVector[Float], VectorVariableLike] {
     override def apply(self: VectorVariableLike, other: VectorVariableLike) = {
       assert(self.length == other.length)
       new VectorVariable(self.length) {
@@ -58,7 +58,7 @@ object TimesOp {
     }
   }
 
-  implicit object ScalarTimesOp extends TimesOp[Float, ScalarVariableLike] {
+  implicit object ScalarMulOp extends MulOp[Float, ScalarVariableLike] {
     override def apply(left: ScalarVariableLike, right: ScalarVariableLike) =
       new ScalarVariable("*") {
         override def eval(context: Context) =

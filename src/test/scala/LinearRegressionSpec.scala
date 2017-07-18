@@ -15,10 +15,11 @@ class LinearRegressionSpec extends FlatSpec {
     val b = Normal(mu = DenseVector(0.0f, 0.0f), sigma = DenseVector(10.0f, 10.0f))
     val sigma = Gamma(1.0f, 1.0f)
 
-    val mu : ScalarVariableLike = a + sum(b * X)
+//    val mu : ScalarVariableLike = a + sum(b * X)
+    val mu : ScalarVariableLike = sum(b * X)
     val Y = Normal(mu = mu, sigma = sigma)
-    val logp = Y.logp() + (a.logp() + b.logp() + sigma.logp())
-//    val logp = Y.logp()
+//    val logp = Y.logp() + (a.logp() + b.logp() + sigma.logp())
+    val logp = Y.logp()
 
     val context = model.context
       .copy(variables = Seq(
@@ -31,10 +32,13 @@ class LinearRegressionSpec extends FlatSpec {
 
     val logpVal = logp.eval(context)
 
-    val dYda = logp.grad(a)
-    assert(dYda.isDefined)
-    val dYdaVal = context.eval(dYda.get)
-    assert(dYdaVal == 65.0398f)
+//    val dYda = logp.grad(a)
+//    assert(dYda.isDefined)
+//    val dYdaVal = context.eval(dYda.get)
+//    assert(dYdaVal == 65.0398f)
+
+//    assert(mu.grad(b).isDefined)
+//    assert(Y.logp().grad(mu).isDefined)
 
     val dYdb = logp.grad(b)
     assert(dYdb.isDefined)

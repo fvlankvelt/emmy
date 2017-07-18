@@ -20,9 +20,11 @@ object Function {
       }
 
       override def grad(scalar: ScalarVariableLike) = {
-        variable.grad(scalar).map { upGrad =>
-          upGrad / variable
-        }
+        variable.grad(scalar).map { _ / variable }
+      }
+
+      override def grad(vector: VectorVariableLike) = {
+        variable.grad(vector).map { _ / variable.toVector(vector.length) }
       }
     }
 
@@ -34,9 +36,11 @@ object Function {
       }
 
       override def grad(scalar: ScalarVariableLike) = {
-        variable.grad(scalar).map { upGrad =>
-          upGrad * digamma(variable)
-        }
+        variable.grad(scalar).map { _ * digamma(variable) }
+      }
+
+      override def grad(vector: VectorVariableLike) = {
+        variable.grad(vector).map { _ * digamma(variable).toVector(vector.length) }
       }
     }
 
@@ -56,12 +60,16 @@ object Function {
         breeze.linalg.sum(upstream)
       }
 
+      override def grad(scalar: ScalarVariableLike) = {
+        variable.grad(scalar).map { sum }
+      }
+
       override def grad(vector: VectorVariableLike) = {
         variable.grad(vector).map { mat =>
           new VectorVariable(variable.length) {
             override def eval(context: Context) = {
               val matVal = context.eval(mat)
-              breeze.linalg.sum(matVal, Axis._1)
+              breeze.linalg.sum(matVal, Axis._0).t
             }
           }
         }
