@@ -15,35 +15,31 @@ class LinearRegressionSpec extends FlatSpec {
     val b = Normal(mu = DenseVector(0.0f, 0.0f), sigma = DenseVector(10.0f, 10.0f))
     val sigma = Gamma(1.0f, 1.0f)
 
-//    val mu : ScalarVariableLike = a + sum(b * X)
-    val mu : ScalarVariableLike = sum(b * X)
+    val mu: ScalarVariableLike = a + sum(b * X)
     val Y = Normal(mu = mu, sigma = sigma)
     val logp = Y.logp() + (a.logp() + b.logp() + sigma.logp())
-//    val logp = Y.logp()
 
     val context = model.context
       .copy(variables = Seq(
-        Assignment(X, DenseVector(1.0f, 2.0f)),
-        Assignment(Y, 0.5f),
-        Assignment(sigma, 0.5f),
-        Assignment(a, 1.0f),
-        Assignment(b, DenseVector(1.0f, 0.5f))
+        X -> DenseVector(1.0f, 2.0f),
+        Y -> 0.5f,
+        sigma -> 0.5f,
+        a -> 1.0f,
+        b -> DenseVector(1.0f, 0.5f)
       ))
 
     val logpVal = logp.eval(context)
+    assert(logpVal == 39.6099f)
 
-//    val dYda = logp.grad(a)
-//    assert(dYda.isDefined)
-//    val dYdaVal = context.eval(dYda.get)
-//    assert(dYdaVal == 65.0398f)
-
-//    assert(mu.grad(b).isDefined)
-//    assert(Y.logp().grad(mu).isDefined)
+    val dYda = logp.grad(a)
+    assert(dYda.isDefined)
+    val dYdaVal = context.eval(dYda.get)
+    assert(dYdaVal == 65.0398f)
 
     val dYdb = logp.grad(b)
     assert(dYdb.isDefined)
     val dYdbVal = context.eval(dYdb.get)
-    assert(dYdbVal == DenseVector(1.0f, 2.0f))
+    assert(dYdbVal == DenseVector(40.0101f, 80.00255f))
 
     val approximation = model.fit(Seq(
       Map(

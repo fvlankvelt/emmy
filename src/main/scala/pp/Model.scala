@@ -8,18 +8,16 @@ case object Constant extends VariableType
 case object Global extends VariableType
 case object Local extends VariableType
 
-case class Assignment[K, T <: VariableLike[K, T]](key: VariableLike[K, T], value: K)
-
 case class Context
 (
-  var variables: Seq[Assignment[_, _]] = Seq.empty,
+  var variables: Seq[(VariableLike[_, _], _)] = Seq.empty,
   var stack: mutable.Stack[VariableLike[_, _]] = mutable.Stack.newBuilder.result()
 ) {
   def eval[K, T <: VariableLike[K, T]](variable: VariableLike[K, T]): K = {
     val result =
       variables
-        .find(_.key eq variable)
-        .map(_.value)
+        .find(_._1 eq variable)
+        .map(_._2)
         .getOrElse {
           if (stack.exists(_ eq variable)) {
             throw new Exception
@@ -27,7 +25,7 @@ case class Context
           stack.push(variable)
           val value = variable.eval(this)
           stack.pop()
-          variables :+= Assignment(variable, value)
+          variables :+= (variable, value)
           value
         }.asInstanceOf[K]
     result
