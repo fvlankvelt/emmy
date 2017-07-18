@@ -8,17 +8,9 @@ trait VectorVariableLike extends VariableLike[DenseVector[Float], VectorVariable
 
   val length: Int
 
-  def grad(scalar: ScalarVariableLike): Option[VectorVariableLike] = None
+  def grad(scalar: ScalarVariableLike): Option[VectorVariableLike]
 
-  def grad(vector: VectorVariableLike): Option[MatrixVariableLike] = {
-    if (this == vector) {
-      Some(new MatrixVariable(length, length) {
-        override def eval(context: Context) = DenseMatrix.eye(length)
-      })
-    } else {
-      None
-    }
-  }
+  def grad(vector: VectorVariableLike): Option[MatrixVariableLike]
 
   def toMatrix(cols: Int) = {
     val upstream = this

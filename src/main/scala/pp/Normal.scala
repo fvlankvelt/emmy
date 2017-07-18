@@ -1,5 +1,7 @@
 package pp
 
+import breeze.linalg.DenseMatrix
+
 
 case class NormalVector(mu: VectorVariableLike, sigma: VectorVariableLike) extends VectorDistribution {
 

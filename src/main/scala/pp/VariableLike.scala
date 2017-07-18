@@ -1,6 +1,6 @@
 package pp
 
-import breeze.linalg.DenseVector
+import breeze.linalg.{DenseMatrix, DenseVector}
 
 trait VariableLike[V, T <: VariableLike[V, T]] {
 
@@ -38,12 +38,45 @@ object VariableLike {
   implicit def toScalar(value: Float): ScalarVariable = {
     new ScalarVariable("const") {
       override def eval(context: Context) = value
+
+      override def grad(scalar: ScalarVariableLike) = {
+        if (scalar == this) {
+          Some(toScalar(1.0f))
+        } else {
+          None
+        }
+      }
+
+      override def grad(vector: VectorVariableLike) = {
+        None
+      }
     }
   }
 
   implicit def toVector(value: DenseVector[Float]): VectorVariable = {
     new VectorVariable(value.length) {
       override def eval(context: Context) = value
+
+      override def grad(scalar: ScalarVariableLike) = {
+        None
+      }
+
+      override def grad(vector: VectorVariableLike) = {
+        if (vector == this) {
+          val mat: DenseMatrix[Float] = DenseMatrix.eye(value.length)
+          Some(VariableLike.toMatrix(mat))
+        } else {
+          None
+        }
+      }
+    }
+  }
+
+  implicit def toMatrix(mat: DenseMatrix[Float]): MatrixVariable = {
+    new MatrixVariable(mat.rows, mat.cols) {
+      override def eval(context: Context) = mat
+
+      override def grad(scalar: ScalarVariableLike) = None
     }
   }
 

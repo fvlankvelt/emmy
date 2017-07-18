@@ -9,7 +9,7 @@ class LinearRegressionSpec extends FlatSpec {
   "A model" should "contain a distribution" in {
     implicit val model = new Model
 
-    val X = VectorVariable(2)
+    val X = Variable.newVector(2)
 
     val a = Normal(mu = 3.0f, sigma = 10.0f)
     val b = Normal(mu = DenseVector(0.0f, 0.0f), sigma = DenseVector(10.0f, 10.0f))

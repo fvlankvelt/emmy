@@ -91,5 +91,13 @@ object Function {
         val matVal = context.eval(variable)
         breeze.linalg.sum(matVal, Axis._1)
       }
+
+      override def grad(scalar: ScalarVariableLike) = {
+        throw new NotImplementedError()
+      }
+
+      override def grad(vector: VectorVariableLike) = {
+        throw new NotImplementedError()
+      }
     }
 }

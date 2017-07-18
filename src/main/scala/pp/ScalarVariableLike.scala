@@ -6,17 +6,9 @@ trait ScalarVariableLike extends VariableLike[Float, ScalarVariableLike] {
 
   override def repr: ScalarVariableLike = this
 
-  def grad(scalar: ScalarVariableLike): Option[ScalarVariableLike] = {
-    if (scalar == this) {
-      Some(1.0f)
-    } else {
-      None
-    }
-  }
+  def grad(scalar: ScalarVariableLike): Option[ScalarVariableLike]
 
-  def grad(vector: VectorVariableLike): Option[VectorVariableLike] = {
-    None
-  }
+  def grad(vector: VectorVariableLike): Option[VectorVariableLike]
 
   def toVector(length: Int): VectorVariableLike = {
     val upstream = this

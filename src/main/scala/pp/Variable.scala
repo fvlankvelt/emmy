@@ -1,8 +1,18 @@
 package pp
 
-case class ScalarVariable(op : String) extends ScalarVariableLike
+abstract class ScalarVariable(op : String) extends ScalarVariableLike
 
-case class VectorVariable(length: Int) extends VectorVariableLike
+abstract class VectorVariable(val length: Int) extends VectorVariableLike
 
-case class MatrixVariable(rows: Int, cols: Int) extends MatrixVariableLike
+abstract class MatrixVariable(val rows: Int, val cols: Int) extends MatrixVariableLike
 
+object Variable {
+
+  def newVector(length: Int) = {
+    new VectorVariable(length) {
+      override def grad(scalar: ScalarVariableLike) = None
+
+      override def grad(vector: VectorVariableLike) = None
+    }
+  }
+}

@@ -27,6 +27,14 @@ trait MatrixVariableLike extends VariableLike[DenseMatrix[Float], MatrixVariable
       override def eval(context: Context) = {
         context.eval(upstream) * context.eval(vector)
       }
+
+      override def grad(scalar: ScalarVariableLike) = {
+        throw new NotImplementedError()
+      }
+
+      override def grad(vector: VectorVariableLike) = {
+        throw new NotImplementedError()
+      }
     }
   }
 }
