@@ -1,8 +1,6 @@
-import breeze.linalg.{DenseMatrix, DenseVector}
+import breeze.linalg.DenseMatrix
 import breeze.math.Semiring
 import org.scalatest.FlatSpec
-import shapeless._
-import shapeless.ops.nat.Sum
 
 import scala.reflect.ClassTag
 
@@ -43,22 +41,21 @@ object Tensors {
   }
 
 
-  class MyTensor[V: Semiring : ClassTag, DOM <: Nat, MOD <: Nat](val dom: Domain[DOM], val mod: Domain[MOD], val data: DenseVector[V]) {
+  class MyTensor[V: Semiring : ClassTag, DOM <: Nat, MOD <: Nat](val dom: Domain[DOM], val mod: Domain[MOD], val data: DenseMatrix[V]) {
 
-    def transpose: MyTensor[V, MOD, DOM] = MyTensor(mod, dom)
+    def transpose: MyTensor[V, MOD, DOM] = new MyTensor(mod, dom, data.t)
   }
 
   object MyTensor {
 
     def apply[V: Semiring : ClassTag, DOM <: Nat, MOD <: Nat](dom: Domain[DOM], mod: Domain[MOD]) =
-      new MyTensor[V, DOM, MOD](dom, mod, DenseVector.zeros[V](dom.size * mod.size))
+      new MyTensor[V, DOM, MOD](dom, mod, DenseMatrix.zeros[V](dom.size, mod.size))
 
     def ones[V: Semiring : ClassTag, DOM <: Nat, MOD <: Nat](dom: Domain[DOM], mod: Domain[MOD]) =
-      new MyTensor[V, DOM, MOD](dom, mod, DenseVector.ones[V](dom.size * mod.size))
+      new MyTensor[V, DOM, MOD](dom, mod, DenseMatrix.ones[V](dom.size, mod.size))
 
     def eye[V: Semiring : ClassTag, DOM <: Nat](dom: Domain[DOM]) = {
-      val matrix = DenseMatrix.eye[V](dom.size)
-      new MyTensor[V, DOM, DOM](dom, dom, DenseVector(matrix.data))
+      new MyTensor[V, DOM, DOM](dom, dom, DenseMatrix.eye[V](dom.size))
     }
 
   }
@@ -87,7 +84,7 @@ object Tensors {
       new ConstantExpression(MyTensor(dom, Domain.join(mod, variable.dom)))
   }
 
-  class Variable[V: Semiring, K <: Nat](val dom: Domain[K]) extends Expression[V, K, Nat._0] {
+  class Variable[V: Semiring : ClassTag, K <: Nat](val dom: Domain[K]) extends Expression[V, K, Nat._0] {
 
     val mod = Domain()
 
@@ -95,16 +92,12 @@ object Tensors {
       throw new NotImplementedError("Variable should not be evaluated")
     }
 
-    def grad(variable: Variable[V, K]) = {
-      if (variable == this) {
-        new ConstantExpression[V, K, K](MyTensor.eye(dom))
-      } else {
-        new ConstantExpression[V, K, K](MyTensor(dom, dom))
-      }
-    }
-
     override def grad[L <: Nat](variable: Variable[V, L]) = {
-      new ConstantExpression[V, K, L](MyTensor(dom, variable.dom))
+      if (variable eq this) {
+        new ConstantExpression(MyTensor.eye(dom).asInstanceOf[MyTensor[V, K, L]]) // ugh, but cast will succeed
+      } else {
+        new ConstantExpression(MyTensor(dom, variable.dom))
+      }
     }
   }
 
@@ -181,5 +174,12 @@ class TensorsSpec extends FlatSpec {
     val b = Domain[Succ[Succ[Nat._0]]](Seq(1))
     val c: Domain[Nat._1] = a
     assert(ed == Domain[Nat._2](sizes = List(2, 3)))
+  }
+
+  "variable" should "have covariant gradient" in {
+    val a = new Variable[Float, Nat._0](Domain())
+    val b = new Variable[Float, Nat._1](Domain(2))
+    val c = a.grad(a)
+    val d = a.grad(b)
   }
 }
