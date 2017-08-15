@@ -39,17 +39,27 @@ object Tensors {
   type Plus[A <: Nat, B <: Nat] = A#Add[B]
 
   /*
+  sealed trait Node
+  case class Leaf() extends Node
+  case class Fork[L <: Node, R <: Node](l: L, r: R) extends Node
+
+  val tree = Fork(Fork(Leaf(), Leaf()), Leaf())
+  */
+
+  /*
   plus-assoc : ∀ n m p → (n + (m + p)) ≡ ((n + m) + p)
   plus-assoc zero m p = refl
   plus-assoc (suc n) m p = cong suc (plus-assoc n m p)
 */
   trait PlusAssoc[N <: Nat, M <: Nat, P <: Nat] {
+
     import Tensors.Nat.===
 
     val proof: Plus[N, Plus[M, P]] === Plus[Plus[N, M], P]
   }
 
   object PlusAssoc {
+
     import Tensors.Nat.===
 
     implicit def plusAssocZero[N <: Nat, M <: Nat]: PlusAssoc[Zero, N, M] = new PlusAssoc[Zero, N, M] {
@@ -67,8 +77,82 @@ object Tensors {
         ](ih.proof)
     }
 
-    implicit def assoc[N <: Nat, M <: Nat, P <: Nat](implicit ih: PlusAssoc[N, M, P]) = ih
+    //    implicit def assoc[N <: Nat, M <: Nat, P <: Nat](implicit ih: PlusAssoc[N, M, P]) = ih
 
+  }
+
+  trait TensorType {
+    type K <: Nat
+    type CK <: Nat
+  }
+
+  type TT[L <: Nat, CL <: Nat] = TensorType {
+    type K = L
+    type CK = CL
+  }
+
+  trait Gradient[V, T <: TensorType, E, M <: Nat] {
+    def grad(expression: E, variable: Variable[V, TT[M, Nat._0]]): Expression[V, TT[T#K, Plus[T#CK, M]]]
+  }
+
+  object Gradient {
+
+    implicit def constantToGradient[V: Semiring : ClassTag, T <: TensorType, M <: Nat]: Gradient[V, T, ConstantExpression[V, T], M] =
+      new Gradient[V, T, ConstantExpression[V, T], M] {
+        override def grad(expression: ConstantExpression[V, T], variable: Variable[V, TT[M, Nat._0]]) = {
+          val dom = expression.dom
+          val mod = expression.mod
+          new ConstantExpression[V, TT[T#K, Plus[T#CK, M]]](MyTensor[V, T#K, Plus[T#CK, M]](dom, Domain.join(mod, variable.dom)))
+        }
+      }
+
+    implicit def variableGradient[V: Semiring : ClassTag, T <: TensorType, M <: Nat]: Gradient[V, T, Variable[V, T], M] =
+      new Gradient[V, T, Variable[V, T], M] {
+        override def grad(expression: Variable[V, T], variable: Variable[V, TT[M, Nat._0]]): Expression[V, TT[T#K, T#CK#Add[M]]] = {
+          type CR = T#CK#Add[M]
+          val dom = expression.dom
+          if (expression eq variable) {
+            new ConstantExpression[V, TT[T#K, CR]](MyTensor.eye(dom).asInstanceOf[MyTensor[V, T#K, CR]]) // ugh, but cast will succeed
+          } else {
+            new ConstantExpression[V, TT[T#K, CR]](MyTensor[V, T#K, CR](dom, Domain.join(expression.mod, variable.dom)))
+          }
+        }
+      }
+
+    implicit def outerGradient[V: Semiring : ClassTag, TL <: TensorType, TR <: TensorType, M <: Nat](implicit assoc: PlusAssoc[TR#CK, TL#CK, M]): Gradient[V, TT[Plus[TL#K, TR#K], Plus[TR#CK, TL#CK]], OuterExpression[V, TL, TR], M] =
+      new Gradient[V, TT[Plus[TL#K, TR#K], Plus[TR#CK, TL#CK]], OuterExpression[V, TL, TR], M] {
+        override def grad(expr: OuterExpression[V, TL, TR], variable: Variable[V, TT[M, Nat._0]]) = {
+//          implicit val assoc = implicitly[PlusAssoc[TL#CK, TR#CK, M]].proof
+          val s = assoc.proof.subst[({type N[X] = Expression[V, TT[Plus[TL#K, TR#K], X]]})#N] _
+
+          val leftGrad : Expression[V, TT[TL#K, Plus[TL#CK, M]]] = expr.left match {
+            case c @ ConstantExpression(_) =>
+              val gradient = constantToGradient[V, TL, M]
+              gradient.grad(c, variable)
+            case v @ Variable(_, _) =>
+              val gradient = variableGradient[V, TL, M]
+              gradient.grad(v, variable) // ugh, but should work
+//            case o @ OuterExpression(_, _) =>
+//              val gradient = outerGradient[V, o.L, o.R]
+//              gradient.grad(o.asInstanceOf[OuterExpression[V, o.L, o.R]], variable)
+          }
+
+//          val leftGrad = functions.grad(expr.left, variable)
+          val leftRes = s(leftGrad outer expr.right)
+          leftRes
+        }
+      }
+  }
+
+  object functions {
+    def grad[V, K <: Nat, CK <: Nat, M <: Nat, E]
+    (
+      expression: E, variable: Variable[V, TT[M, Nat._0]]
+    )(
+      implicit gradient: Gradient[V, TT[K, CK], E, M]
+    ): Expression[V, TT[K, Plus[CK, M]]] = {
+      gradient.grad(expression, variable)
+    }
   }
 
   /*
@@ -124,17 +208,19 @@ object Tensors {
   }
 
 
-  trait Expression[V, K <: Nat, CK <: Nat] {
+  sealed trait Expression[V, T <: TensorType] {
 
     implicit val ringV: Semiring[V]
     implicit val ctV: ClassTag[V]
 
-    val dom: Domain[K]
-    val mod: Domain[CK]
+    //    type AddGrad[P <: Nat] <: Nat// = PlusAssoc[CK, Zero, P]
 
-    def eval(): MyTensor[V, K, CK]
+    val dom: Domain[T#K]
+    val mod: Domain[T#CK]
 
-    def grad[L <: Nat](variable: Variable[V, L]): Expression[V, K, Plus[CK, L]]
+    def eval(): MyTensor[V, T#K, T#CK]
+
+    //    def grad[L <: Nat : AddGrad](variable: Variable[V, L]): Expression[V, K, Plus[CK, L]]
 
     // ex:   dom = (3)     mod = (2, 3)
     //  =>   dom = (3, 2)  mod = (3)
@@ -148,28 +234,28 @@ object Tensors {
     // col = m_2
     // row = d_1 + 3 * m_1
     // idx = d_1 + 3 * m_1 + 6 * m_2
-    def shiftLeft: Expression[V, Succ[K], CK#P] = {
+    def shiftLeft: Expression[V, TT[Succ[T#K], T#CK#P]] = {
       val self = this
-      new Expression[V, Succ[K], CK#P] {
+      new Expression[V, TT[Succ[T#K], T#CK#P]] {
         implicit val ringV = self.ringV
         implicit val ctV = self.ctV
-        override val dom = Domain[Succ[K]](self.dom.sizes :+ self.mod.sizes.head)
-        override val mod = Domain[CK#P](self.mod.sizes.drop(1))
+        override val dom = Domain[Succ[T#K]](self.dom.sizes :+ self.mod.sizes.head)
+        override val mod = Domain[T#CK#P](self.mod.sizes.drop(1))
 
         override def eval() = {
           val tensor = self.eval()
           val data = tensor.data
           val reshaped = data.reshape(dom.size, mod.size)
-          new MyTensor[V, Succ[K], CK#P](dom, mod, reshaped)
+          new MyTensor[V, Succ[T#K], T#CK#P](dom, mod, reshaped)
         }
 
-        override def grad[L <: Nat](variable: Variable[V, L]) = ???
+        //        override def grad[L <: Nat : AddGrad](variable: Variable[V, L]) = ???
       }
     }
 
-    def transpose: Expression[V, CK, K] = {
+    def transpose: Expression[V, TT[T#CK, T#K]] = {
       val self = this
-      new Expression[V, CK, K] {
+      new Expression[V, TT[T#CK, T#K]] {
         implicit val ringV = self.ringV
         implicit val ctV = self.ctV
         override val dom = self.mod
@@ -177,10 +263,11 @@ object Tensors {
 
         override def eval() = self.eval().transpose
 
-        override def grad[L <: Nat](variable: Variable[V, L]) = ???
+        //        override def grad[L <: Nat : AddGrad](variable: Variable[V, L]) = ???
       }
     }
 
+    /*
     def trace: Expression[V, K#P, CK#P] = {
       assert(dom.sizes.last == mod.sizes.head)
       val self = this
@@ -208,61 +295,58 @@ object Tensors {
           new MyTensor(dom, mod, newMatrix)
         }
 
-        override def grad[L <: Nat](variable: Variable[V, L]) = ???
+        //        override def grad[L <: Nat : AddGrad](variable: Variable[V, L]) = ???
       }
 
     }
+    */
 
-    def outer[L <: Nat, CL <: Nat](other: Expression[V, L, CL]): Expression[V, Plus[K, L], Plus[CL, CK]] = {
-      val left = this
-      val right = other
-      new Expression[V, Plus[K, L], Plus[CL, CK]] {
-        implicit val ringV = left.ringV
-        implicit val ctV = left.ctV
-        val dom = Domain.join(left.dom, right.dom)
-        val mod = Domain.join(right.mod, left.mod)
+    def outer[OT <: TensorType](other: Expression[V, OT]): Expression[V, TT[Plus[T#K, OT#K], Plus[OT#CK, T#CK]]] =
+      new OuterExpression[V, T, OT](this, other)
 
-        override def eval() = {
-          val ring = implicitly[Semiring[V]]
-
-          val leftMatrix = left.eval().data
-          val rightMatrix = right.eval().data
-          val newMatrix = DenseMatrix.zeros[V](dom.size, mod.size)
-          for {
-            rowLeft <- 0 until left.dom.size
-            rowRight <- 0 until right.dom.size
-            colLeft <- 0 until left.mod.size
-            colRight <- 0 until right.mod.size
-          } {
-            val entry = ring.*(
-              leftMatrix(rowLeft, colLeft),
-              rightMatrix(rowRight, colRight)
-            )
-            newMatrix(
-              rowLeft * right.dom.size + rowRight,
-              colLeft * right.mod.size + colRight
-            ) = entry
-          }
-          new MyTensor(dom, mod, newMatrix)
-        }
-
-        override def grad[M <: Nat](variable: Variable[V, M]) = ??? /* {
-          implicit val assoc = PlusAssoc.assoc[CL, CK, M].proof
-          val s = assoc.subst[({type N[X] = Expression[V, Plus[K, L], X]})#N]
-
-          val leftGrad = left.grad(variable)
-          val leftRes = s(leftGrad outer right)
-          leftRes
-        }
-         */
-      }
-    }
   }
 
-  class ConstantExpression[V: ClassTag : Semiring, K <: Nat, CK <: Nat]
+  case class OuterExpression[V: ClassTag : Semiring, TL <: TensorType, TR <: TensorType]
   (
-    val value: MyTensor[V, K, CK]
-  ) extends Expression[V, K, CK] {
+    left: Expression[V, TL],
+    right: Expression[V, TR]
+  ) extends Expression[V, TT[Plus[TL#K, TR#K], Plus[TR#CK, TL#CK]]] {
+    val ringV = implicitly[Semiring[V]]
+    val ctV = implicitly[ClassTag[V]]
+
+    val dom = Domain.join(left.dom, right.dom)
+    val mod = Domain.join(right.mod, left.mod)
+
+    override def eval() = {
+      val leftMatrix = left.eval().data
+      val rightMatrix = right.eval().data
+      val newMatrix = DenseMatrix.zeros[V](dom.size, mod.size)
+      for {
+        rowLeft <- 0 until left.dom.size
+        rowRight <- 0 until right.dom.size
+        colLeft <- 0 until left.mod.size
+        colRight <- 0 until right.mod.size
+      } {
+        val entry = ringV.*(
+          leftMatrix(rowLeft, colLeft),
+          rightMatrix(rowRight, colRight)
+        )
+        newMatrix(
+          rowLeft * right.dom.size + rowRight,
+          colLeft * right.mod.size + colRight
+        ) = entry
+      }
+      new MyTensor(dom, mod, newMatrix)
+    }
+
+    //        override type AddGrad[M <: Nat] = PlusAssoc[CL, CK, M]
+
+  }
+
+  case class ConstantExpression[V: ClassTag : Semiring, T <: TensorType]
+  (
+    value: MyTensor[V, T#K, T#CK]
+  ) extends Expression[V, T] {
 
     val ringV = implicitly[Semiring[V]]
     val ctV = implicitly[ClassTag[V]]
@@ -272,28 +356,26 @@ object Tensors {
 
     override def eval() = value
 
-    override def grad[L <: Nat](variable: Variable[V, L]) =
-      new ConstantExpression[V, K, Plus[CK, L]](MyTensor[V, K, Plus[CK, L]](dom, Domain.join(mod, variable.dom)))
   }
 
-  class Variable[V: Semiring : ClassTag, K <: Nat](val dom: Domain[K]) extends Expression[V, K, Nat._0] {
+  case class Variable[V: Semiring : ClassTag, T <: TensorType] private (
+    dom: Domain[T#K],
+    mod: Domain[T#CK]
+  ) extends Expression[V, T] {
 
     val ringV = implicitly[Semiring[V]]
     val ctV = implicitly[ClassTag[V]]
 
-    val mod = Domain()
 
     override def eval() = {
       throw new NotImplementedError("Variable should not be evaluated")
     }
 
-    override def grad[L <: Nat](variable: Variable[V, L]) = {
-      if (variable eq this) {
-        new ConstantExpression(MyTensor.eye(dom).asInstanceOf[MyTensor[V, K, L]]) // ugh, but cast will succeed
-      } else {
-        new ConstantExpression(MyTensor[V, K, L](dom, variable.dom))
-      }
-    }
+  }
+
+  object Variable {
+    def apply[V: Semiring : ClassTag, L <: Nat](dom: Domain[L]) =
+      Variable[V, TT[L, Nat._0]](dom, Domain())
   }
 
   /*
@@ -372,10 +454,26 @@ class TensorsSpec extends FlatSpec {
   }
 
   "variable" should "have covariant gradient" in {
-    val a = new Variable[Float, Nat._0](Domain())
-    val b = new Variable[Float, Nat._1](Domain(2))
-    val c = a.grad(a)
-    val d = a.grad(b)
+    import Gradient._
+    import functions._
+    val a = Variable[Float, Nat._0](Domain())
+    val b = Variable[Float, Nat._1](Domain(2))
+    val c = grad(a, a)
+    val d = grad(a, b)
+  }
+
+  trait TestAssoc[A <: Nat, B <: Nat, C <: Nat] {
+    def assoc: PlusAssoc[A, B, C]
+
+    def proof = assoc.proof
+  }
+
+  trait TestPartial[A <: Nat, B <: Nat] {
+    type Assoc[C <: Nat] = PlusAssoc[A, B, C]
+
+    def toAssoc[C <: Nat : Assoc]() = {
+      implicitly[Assoc[C]].proof
+    }
   }
 
   "addition" should "be associative" in {
@@ -384,9 +482,18 @@ class TensorsSpec extends FlatSpec {
     type C = Nat._3
     import PlusAssoc._
     val proof = implicitly[PlusAssoc[A, B, C]].proof
-//    val a: Plus[A, Plus[B, C]] = null
-//    val b: Plus[Plus[A, B], C] = a
-//    val c: Plus[A, Plus[B, C]] = b
+    //    PlusAssoc.assoc[A, B, C].proof
+
+    val assocType = implicitly[PlusAssoc[A, B, C]]
+    val testAssoc = new TestAssoc[A, B, C] {
+      override val assoc = assocType
+    }
+
+    val testPartial = new TestPartial[A, B] {}
+    testPartial.toAssoc[C]()
+    //    val a: Plus[A, Plus[B, C]] = null
+    //    val b: Plus[Plus[A, B], C] = a
+    //    val c: Plus[A, Plus[B, C]] = b
   }
 
 }
