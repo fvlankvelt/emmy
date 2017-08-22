@@ -1,9 +1,6 @@
 import breeze.linalg.{DenseMatrix, View}
 import breeze.math.Semiring
 import org.scalatest.FlatSpec
-//import shapeless.Nat._0
-//import shapeless.ops.nat.{Sum, ToInt}
-//import shapeless.{Nat, Succ}
 
 import scala.language.higherKinds
 import scala.reflect.ClassTag
@@ -13,13 +10,10 @@ object Tensors {
   sealed trait Nat {
     type P <: Nat
     type Add[A <: Nat] <: Nat // 1.add(5)
-    type Sub[A <: Nat] <: Nat // 1.add(5)
+    type Sub[A <: Nat] <: Nat // 5.sub(1)
   }
 
   object Nat {
-    // Equality on nats
-    //    type ===[A <: Nat, B <: Nat] = Leibniz[Nothing, Nat, A, B]
-
     type _0 = Zero
     type _1 = Succ[Zero]
     type _2 = Succ[_1]
@@ -57,215 +51,6 @@ object Tensors {
       override def apply() = prev.apply() + 1
     }
   }
-
-  /*
-  type Plus[A <: Nat, B <: Nat] = Sum[A, B]#Out // shapeless natural numbers
-
-  trait Sub[A <: Nat, B <: Nat] extends Serializable {
-    type Out <: Nat
-  }
-
-  object Sub {
-
-    def apply[A <: Nat, B <: Nat](implicit sub: Sub[A, B]): Sub[A, B] = sub
-
-    type Aux[A <: Nat, B <: Nat, C <: Nat] = Sub[A, B] {type Out = C}
-
-    implicit def toSub[A <: Nat, B <: Nat, C <: Nat](implicit aux: Sum.Aux[A, B, C]): Aux[A, C, B] = new Sub[A, C] {
-      type Out = B
-    }
-  }
-
-  type Min[A <: Nat, B <: Nat] = Sub[A, B]#Out
-    */
-
-  /*
-  sealed trait Node
-  case class Leaf() extends Node
-  case class Fork[L <: Node, R <: Node](l: L, r: R) extends Node
-
-  val tree = Fork(Fork(Leaf(), Leaf()), Leaf())
-  */
-
-  /*
-  plus-assoc : ∀ n m p → (n + (m + p)) ≡ ((n + m) + p)
-  plus-assoc zero m p = refl
-  plus-assoc (suc n) m p = cong suc (plus-assoc n m p)
-  */
-  /*
-  trait PlusAssoc[N <: Nat, M <: Nat, P <: Nat] {
-
-    import Tensors.Nat.===
-
-    val proof: Plus[N, Plus[M, P]] === Plus[Plus[N, M], P]
-  }
-
-  object PlusAssoc {
-
-    import Tensors.Nat.===
-
-    implicit def plusAssocZero[N <: Nat, M <: Nat]: PlusAssoc[Zero, N, M] = new PlusAssoc[Zero, N, M] {
-      val proof: Plus[N, M] === Plus[N, M] = Leibniz.refl
-    }
-
-    implicit def plusAssocSucc[N <: Nat, M <: Nat, P <: Nat](implicit
-                                                             ih: PlusAssoc[N, M, P]): PlusAssoc[Succ[N], M, P] = new PlusAssoc[Succ[N], M, P] {
-      // For some reason scalac fails to infer right params for lift :(
-      val proof: Succ[Plus[N, Plus[M, P]]] === Succ[Plus[Plus[N, M], P]] = Leibniz.lift[
-        Nothing, Nothing,
-        Nat, Nat,
-        Succ,
-        Plus[N, Plus[M, P]], Plus[Plus[N, M], P]
-        ](ih.proof)
-    }
-  }
-
-  trait AssocComplete[N <: Nat] {
-
-    import Tensors.Nat.===
-
-    def proof[M <: Nat, P <: Nat]: Plus[M, Plus[N, P]] === Plus[N, Plus[M, P]]
-  }
-
-  object AssocComplete {
-
-    import Tensors.Nat.===
-
-    implicit def assocZero: AssocComplete[Zero] = new AssocComplete[Zero] {
-      override def proof[N <: Nat, M <: Nat]: Plus[N, M] === Plus[N, M] = Leibniz.refl
-    }
-
-    implicit def assocSucc[N <: Nat](implicit prev: AssocComplete[N]): AssocComplete[Succ[N]] = new AssocComplete[Succ[N]] {
-      override def proof[M <: Nat, P <: Nat]: Succ[Plus[M, Plus[N, P]]] === Plus[Succ[N], Plus[M, P]] = Leibniz.lift[
-        Nothing, Nothing,
-        Nat, Nat,
-        Succ,
-        Plus[M, Plus[N, P]], Plus[N, Plus[M, P]]
-        ](prev.proof[M, P])
-    }
-  }
-
-  trait PlusComm[A <: Nat, B <: Nat] {
-
-    import Tensors.Nat.===
-
-    val proof: Plus[A, B] === Plus[B, A]
-  }
-
-  object PlusComm {
-
-    import Tensors.Nat.===
-
-    implicit val commZero: PlusComm[Zero, Zero] = new PlusComm[Zero, Zero] {
-      val proof: Zero === Zero = Leibniz.refl
-    }
-
-    implicit def commPlusZero[A <: Nat](implicit prev: PlusComm[Zero, A]): PlusComm[Zero, Succ[A]] = new PlusComm[Zero, Succ[A]] {
-      override val proof = Leibniz.lift[
-        Nothing, Nothing,
-        Nat, Nat,
-        Succ,
-        Plus[Zero, A], Plus[A, Zero]
-        ](prev.proof)
-    }
-
-    implicit def commPlusAny[A <: Nat, B <: Nat](implicit zero: PlusComm[A, Succ[B]]): PlusComm[Succ[A], B] = new PlusComm[Succ[A], B] {
-
-      override val proof: Plus[Succ[A], B] === Plus[Succ[B], A] = Leibniz.lift[
-        Nothing, Nothing,
-        Nat, Nat,
-        Succ,
-        Plus[A, B], Plus[B, A]
-        ](zero.proof)
-    }
-
-  }
-  */
-
-  /*
-  trait Gradient[V, T <: TensorType, E, M <: Nat] {
-    def grad(expression: E, variable: Variable[V, TT[M, Nat._0]]): Expression[V, TT[T#K, Plus[T#CK, M]]]
-  }
-
-  object Gradient {
-
-    implicit def constantToGradient[V: Semiring : ClassTag, T <: TensorType, M <: Nat]: Gradient[V, T, ConstantExpression[V, T], M] =
-      new Gradient[V, T, ConstantExpression[V, T], M] {
-        override def grad(expression: ConstantExpression[V, T], variable: Variable[V, TT[M, Nat._0]]) = {
-          val dom = expression.dom
-          val mod = expression.mod
-          new ConstantExpression[V, TT[T#K, Plus[T#CK, M]]](MyTensor[V, T#K, Plus[T#CK, M]](dom, Domain.join(mod, variable.dom)))
-        }
-      }
-
-    implicit def variableGradient[V: Semiring : ClassTag, T <: TensorType, M <: Nat]: Gradient[V, T, Variable[V, T], M] =
-      new Gradient[V, T, Variable[V, T], M] {
-        override def grad(expression: Variable[V, T], variable: Variable[V, TT[M, Nat._0]]): Expression[V, TT[T#K, T#CK#Add[M]]] = {
-          type CR = T#CK#Add[M]
-          val dom = expression.dom
-          if (expression eq variable) {
-            new ConstantExpression[V, TT[T#K, CR]](MyTensor.eye(dom).asInstanceOf[MyTensor[V, T#K, CR]]) // ugh, but cast will succeed
-          } else {
-            new ConstantExpression[V, TT[T#K, CR]](MyTensor[V, T#K, CR](dom, Domain.join(expression.mod, variable.dom)))
-          }
-        }
-      }
-
-    implicit def outerGradient[V: Semiring : ClassTag, TL <: TensorType, TR <: TensorType, M <: Nat](implicit assoc: PlusAssoc[TR#CK, TL#CK, M]): Gradient[V, TT[Plus[TL#K, TR#K], Plus[TR#CK, TL#CK]], OuterExpression[V, TL, TR], M] =
-      new Gradient[V, TT[Plus[TL#K, TR#K], Plus[TR#CK, TL#CK]], OuterExpression[V, TL, TR], M] {
-        override def grad(expr: OuterExpression[V, TL, TR], variable: Variable[V, TT[M, Nat._0]]) = {
-  //          implicit val assoc = implicitly[PlusAssoc[TL#CK, TR#CK, M]].proof
-          val s = assoc.proof.subst[({type N[X] = Expression[V, TT[Plus[TL#K, TR#K], X]]})#N] _
-
-          val leftGrad : Expression[V, TT[TL#K, Plus[TL#CK, M]]] = expr.left match {
-            case c @ ConstantExpression(_) =>
-              val gradient = constantToGradient[V, TL, M]
-              gradient.grad(c, variable)
-            case v @ Variable(_, _) =>
-              val gradient = variableGradient[V, TL, M]
-              gradient.grad(v, variable) // ugh, but should work
-  //            case o @ OuterExpression(_, _) =>
-  //              val gradient = outerGradient[V, o.L, o.R]
-  //              gradient.grad(o.asInstanceOf[OuterExpression[V, o.L, o.R]], variable)
-          }
-
-  //          val leftGrad = functions.grad(expr.left, variable)
-          val leftRes = s(leftGrad outer expr.right)
-          leftRes
-        }
-      }
-  }
-
-  object functions {
-    def grad[V, K <: Nat, CK <: Nat, M <: Nat, E]
-    (
-      expression: E, variable: Variable[V, TT[M, Nat._0]]
-    )(
-      implicit gradient: Gradient[V, TT[K, CK], E, M]
-    ): Expression[V, TT[K, Plus[CK, M]]] = {
-      gradient.grad(expression, variable)
-    }
-  }
-  */
-
-  /*
-  case class PlusMove[N <: Nat, M <: Nat]() {
-
-    type assoc[P <: Nat] = PlusAssoc[N, M, P]
-  }
-
-  case class PlusPreMove[N <: Nat]() {
-    type prep[M <: Nat] = PlusMove[N, M]
-  }
-
-  object PlusPreMove {
-
-    implicit def plusPreMoveZero: PlusPreMove[Zero] = PlusPreMove[Zero]()
-
-    implicit def plusPreMoveNext[N <: Nat](implicit prev: PlusPreMove[N]): PlusPreMove[Succ[N]] =
-      new PlusPreMove[Succ[N]] {}
-  }
-  */
 
   case class Domain[K <: Nat : ToInt](sizes: Seq[Int]) {
     lazy val size = sizes.product
@@ -352,17 +137,6 @@ object Tensors {
 
   }
 
-
-  trait TensorType {
-    type K <: Nat
-    type CK <: Nat
-  }
-
-  type TT[L <: Nat, CL <: Nat] = TensorType {
-    type K = L
-    type CK = CL
-  }
-
   class MyTensor[V: Semiring : ClassTag, DOM <: Nat, MOD <: Nat](val dom: Domain[DOM], val mod: Domain[MOD], val data: DenseMatrix[V]) {
 
     def transpose: MyTensor[V, MOD, DOM] = new MyTensor(mod, dom, data.t)
@@ -415,40 +189,6 @@ object Tensors {
 
     def +(other: Expression[V, K, CK]): Expression[V, K, CK] = PlusExpression(this, other)
 
-    /*
-    def trace: Expression[V, K#P, CK#P] = {
-      assert(dom.sizes.last == mod.sizes.head)
-      val self = this
-      new Expression[V, K#P, CK#P] {
-        implicit val ringV = self.ringV
-        implicit val ctV = self.ctV
-        override val dom = Domain[K#P](self.dom.sizes.dropRight(1))
-        override val mod = Domain[CK#P](self.mod.sizes.drop(1))
-
-        override def eval() = {
-          val matrix = self.eval().data
-          val newMatrix = DenseMatrix.zeros[V](dom.size, mod.size)
-          for {
-            row <- 0 until dom.size
-            col <- 0 until mod.size
-          } {
-            val length = self.dom.sizes.head
-            val ring = implicitly[Semiring[V]]
-            var sum = ring.zero
-            for {i <- 0 until length} {
-              sum = ring.+(sum, matrix(row * length + i, col * length + i))
-            }
-            newMatrix(row, col) = sum
-          }
-          new MyTensor(dom, mod, newMatrix)
-        }
-
-        //        override def grad[L <: Nat : AddGrad](variable: Variable[V, L]) = ???
-      }
-
-    }
-    */
-
     def outer[OK <: Nat : ToInt, OCK <: Nat : ToInt](other: Expression[V, OK, OCK]): Expression[V, Plus[K, OK], Plus[OCK, CK]] =
       new OuterExpression[V, K, CK, OK, OCK](this, other)
   }
@@ -486,7 +226,8 @@ object Tensors {
   V: ClassTag : Semiring,
   K <: Nat,
   CK <: Nat,
-  L <: Nat : ToInt](self: Expression[V, K, CK])
+  L <: Nat : ToInt
+  ](self: Expression[V, K, CK])
     extends Expression[V, Min[K, L], Plus[CK, L]] {
 
     val ringV = self.ringV
@@ -509,7 +250,14 @@ object Tensors {
     }
   }
 
-  case class TransposeExpression[V: ClassTag : Semiring, K <: Nat, CK <: Nat, L <: Nat : ToInt, CL <: Nat : ToInt](orig: Expression[V, K, CK]) extends Expression[V, Plus[Min[K, L], CL], Plus[Min[CK, CL], L]] {
+  case class TransposeExpression[
+  V: ClassTag : Semiring,
+  K <: Nat,
+  CK <: Nat,
+  L <: Nat : ToInt,
+  CL <: Nat : ToInt
+  ](orig: Expression[V, K, CK])
+    extends Expression[V, Plus[Min[K, L], CL], Plus[Min[CK, CL], L]] {
 
     val ringV = orig.ringV
     val ctV = orig.ctV
@@ -544,11 +292,12 @@ object Tensors {
     override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = ???
   }
 
-  case class PlusExpression[V: ClassTag : Semiring, K <: Nat, CK <: Nat]
-  (
-    left: Expression[V, K, CK],
-    right: Expression[V, K, CK]
-  ) extends Expression[V, K, CK] {
+  case class PlusExpression[
+  V: ClassTag : Semiring,
+  K <: Nat,
+  CK <: Nat
+  ](left: Expression[V, K, CK], right: Expression[V, K, CK])
+    extends Expression[V, K, CK] {
     assert(left.tt == right.tt)
 
     val ringV = implicitly[Semiring[V]]
@@ -569,11 +318,15 @@ object Tensors {
     }
   }
 
-  case class OuterExpression[V: ClassTag : Semiring, KL <: Nat, CKL <: Nat, KR <: Nat, CKR <: Nat]
-  (
-    left: Expression[V, KL, CKL],
-    right: Expression[V, KR, CKR]
-  ) extends Expression[V, Plus[KL, KR], Plus[CKR, CKL]] {
+  case class OuterExpression[
+  V: ClassTag : Semiring,
+  KL <: Nat,
+  CKL <: Nat,
+  KR <: Nat,
+  CKR <: Nat
+  ](left: Expression[V, KL, CKL], right: Expression[V, KR, CKR])
+    extends Expression[V, Plus[KL, KR], Plus[CKR, CKL]] {
+
     val ringV = implicitly[Semiring[V]]
     val ctV = implicitly[ClassTag[V]]
 
@@ -639,9 +392,6 @@ object Tensors {
     override def eval() = value
 
     override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = {
-      //      implicit val mpck = new ToInt[Plus[M, CK]] {
-      //        override def apply() = implicitly[ToInt[M]].apply() + tt.mod.toInt.apply()
-      //      }
       new ConstantExpression[V, K, Plus[M, CK]](MyTensor[V, K, Plus[M, CK]](tt.dom, Domain.join(variable.dom, tt.mod)))
     }
   }
@@ -667,65 +417,6 @@ object Tensors {
     }.asInstanceOf[Expression[V, L, Plus[M, Nat._0]]]
   }
 
-  /*
-  class VariableEmbedding[A, X](implicit eb: Embedding[A, X]) extends Embedding[Variable[A], Variable[X]] {
-    override def embed(value: Variable[A]) = new Variable[X] {
-      override def eval() = eb.embed(value.eval())
-
-      override def grad[B, C](target: Variable[B])(implicit g: Gradient[X, B, C], rvc: Ring[Variable[C]], eb: Embedding[X, C]) = {
-
-      }
-    }
-  }
-
-  class VariableRing[A](implicit ringA: Ring[A]) extends Ring[Variable[A]] {
-
-    override def neg(value: Variable[A]) = new Variable[A] {
-      override def eval() = ringA.neg(value.eval())
-
-      override def grad[B, C](target: Variable[B])(implicit g: Gradient[A, B, C], rvc: Ring[Variable[C]], eb: Embedding[A, C]) = {
-        rvc.neg(value.grad(target))
-      }
-    }
-
-    override def +(left: Variable[A], right: Variable[A]) = new Variable[A] {
-      override def eval() = ringA.+(left.eval(), right.eval())
-
-      override def grad[B, C](target: Variable[B])(implicit g: Gradient[A, B, C], rvc: Ring[Variable[C]], eb: Embedding[A, C]) = {
-        val lg = left.grad(target)
-        val rg = right.grad(target)
-        rvc.+(lg, rg)
-      }
-    }
-
-    override def -(left: Variable[A], right: Variable[A]) = new Variable[A] {
-      override def eval() = ringA.-(left.eval(), right.eval())
-
-      override def grad[B, C](target: Variable[B])(implicit g: Gradient[A, B, C], rvc: Ring[Variable[C]], eb: Embedding[A, C]) = {
-        val lg = left.grad(target)
-        val rg = right.grad(target)
-        rvc.neg(lg, rg)
-      }
-    }
-
-    override def *(left: Variable[A], right: Variable[A]) = new Variable[A] {
-      override def eval() = ringA.*(left.eval(), right.eval())
-
-      override def grad[B, C](target: Variable[B])(implicit g: Gradient[A, B, C], rvc: Ring[Variable[C]], eb: Embedding[A, C]) = {
-        val lg = left.grad(target)
-        val rg = right.grad(target)
-        rvc.+(rvc.*(lg, right), rvc.*(left, rg))
-
-      }
-    }
-
-    override def /(left: Variable[A], right: Variable[A]) = new Variable[A] {
-      override def eval() = ringA./(left.eval(), right.eval())
-    }
-  }
-
-  */
-
 }
 
 class TensorsSpec extends FlatSpec {
@@ -750,41 +441,5 @@ class TensorsSpec extends FlatSpec {
     val d: Expression[Float, Nat._1, Nat._1] = a.grad(b)
     val x: Expression[Float, Nat._2, Nat._1] = (a outer b) grad t
   }
-
-  /*
-  trait TestAssoc[A <: Nat, B <: Nat, C <: Nat] {
-    def assoc: PlusAssoc[A, B, C]
-
-    def proof = assoc.proof
-  }
-
-  trait TestPartial[A <: Nat, B <: Nat] {
-    type Assoc[C <: Nat] = PlusAssoc[A, B, C]
-
-    def toAssoc[C <: Nat : Assoc]() = {
-      implicitly[Assoc[C]].proof
-    }
-  }
-
-  "addition" should "be associative" in {
-    type A = Nat._1
-    type B = Nat._2
-    type C = Nat._3
-    import PlusAssoc._
-    val proof = implicitly[PlusAssoc[A, B, C]].proof
-    //    PlusAssoc.assoc[A, B, C].proof
-
-    val assocType = implicitly[PlusAssoc[A, B, C]]
-    val testAssoc = new TestAssoc[A, B, C] {
-      override val assoc = assocType
-    }
-
-    val testPartial = new TestPartial[A, B] {}
-    testPartial.toAssoc[C]()
-    //    val a: Plus[A, Plus[B, C]] = null
-    //    val b: Plus[Plus[A, B], C] = a
-    //    val c: Plus[A, Plus[B, C]] = b
-  }
-  */
 
 }
