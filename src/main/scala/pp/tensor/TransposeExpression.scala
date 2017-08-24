@@ -41,7 +41,7 @@ CL <: Nat : ToInt
         (col * blockRows) until ((col + 1) * blockRows)
       ) := view.t
     }
-    new Tensor[V, Plus[Min[K, L], CL], Plus[Min[CK, CL], L]](shape.dom, shape.mod, newData)
+    Tensor[V, Plus[Min[K, L], CL], Plus[Min[CK, CL], L]](shape.dom, shape.mod, newData)
   }
 
   override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = ???

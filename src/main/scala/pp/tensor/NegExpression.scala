@@ -17,7 +17,7 @@ CK <: Nat
   override val shape = upstream.shape
 
   override def eval() = {
-    new Tensor[V, K, CK](shape.dom, shape.mod, -upstream.eval().data)
+    Tensor[V, K, CK](shape.dom, shape.mod, -upstream.eval().data)
   }
 
   override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = {

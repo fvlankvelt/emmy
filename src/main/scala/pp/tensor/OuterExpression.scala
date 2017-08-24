@@ -38,7 +38,7 @@ CKR <: Nat
         colLeft * right.shape.mod.size + colRight
       ) = entry
     }
-    new Tensor(shape.dom, shape.mod, newMatrix)
+    Tensor(shape.dom, shape.mod, newMatrix)
   }
 
   override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = {

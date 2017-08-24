@@ -20,7 +20,7 @@ CK <: Nat
   override def eval() = {
     val leftTensor = left.eval()
     val rightTensor = right.eval()
-    new Tensor[V, K, CK](shape.dom, shape.mod, leftTensor.data -:- rightTensor.data)
+    Tensor[V, K, CK](shape.dom, shape.mod, leftTensor.data -:- rightTensor.data)
   }
 
   override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = {

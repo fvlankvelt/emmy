@@ -21,7 +21,7 @@ L <: Nat : ToInt
     val tensor = self.eval()
     val data = tensor.data
     val reshaped = data.reshape(shape.dom.size, shape.mod.size, View.Require)
-    new Tensor[V, Plus[K, L], Min[CK, L]](shape.dom, shape.mod, reshaped)
+    Tensor[V, Plus[K, L], Min[CK, L]](shape.dom, shape.mod, reshaped)
   }
 
   override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = {
