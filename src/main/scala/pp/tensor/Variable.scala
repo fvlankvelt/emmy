@@ -1,13 +1,13 @@
 package pp.tensor
 
-import breeze.math.Semiring
+import breeze.math.Field
 
 import scala.reflect.ClassTag
 
-case class Variable[V: Semiring : ClassTag, L <: Nat : ToInt](dom: Domain[L])
+case class Variable[V: Field : ClassTag, L <: Nat : ToInt](dom: Domain[L])
   extends Expression[V, L, Zero] {
 
-  val ringV = implicitly[Semiring[V]]
+  val ringV = implicitly[Field[V]]
   val ctV = implicitly[ClassTag[V]]
 
   val shape = TensorShape(dom, Domain())

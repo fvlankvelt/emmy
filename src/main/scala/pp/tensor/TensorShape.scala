@@ -52,7 +52,17 @@ case class TensorShape[K <: Nat, CK <: Nat](dom: Domain[K], mod: Domain[CK]) {
   }
 
   def broadcast[L <: Nat : ToInt, CL <: Nat : ToInt](dom: Domain[L], mod: Domain[CL]): TensorShape[Plus[K, L], Plus[CL, CK]] = {
-
+    val self = this
+    implicit val varInt = new ToInt[Plus[K, L]] {
+      override def apply() = self.dom.toInt.apply() + dom.toInt.apply()
+    }
+    implicit val covInt = new ToInt[Plus[CL, CK]] {
+      override def apply() = self.mod.toInt.apply() + mod.toInt.apply()
+    }
+    TensorShape(
+      Domain[Plus[K, L]](self.dom.sizes ++ dom.sizes),
+      Domain[Plus[CL, CK]](mod.sizes ++ self.mod.sizes)
+    )
   }
 
   def outer[L <: Nat, CL <: Nat](right: TensorShape[L, CL]): TensorShape[Plus[K, L], Plus[CL, CK]] = {

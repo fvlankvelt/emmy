@@ -1,6 +1,6 @@
 package pp.tensor
 
-import breeze.linalg.{*, BroadcastedColumns, BroadcastedRows, DenseMatrix, DenseVector}
+import breeze.linalg.DenseMatrix
 import breeze.math.Semiring
 
 import scala.reflect.ClassTag

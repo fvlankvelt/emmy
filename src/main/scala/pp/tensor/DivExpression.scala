@@ -1,11 +1,11 @@
 package pp.tensor
 
-import breeze.math.Semiring
+import breeze.math.Field
 
 import scala.reflect.ClassTag
 
 case class DivExpression[
-V: ClassTag : Semiring,
+V: ClassTag : Field,
 K <: Nat,
 CK <: Nat
 ](left: Expression[V, K, CK], right: Expression[V, K, CK])
@@ -13,7 +13,7 @@ CK <: Nat
 
   assert(left.shape == right.shape)
 
-  val ringV = implicitly[Semiring[V]]
+  val ringV = implicitly[Field[V]]
   val ctV = implicitly[ClassTag[V]]
 
   override val shape = left.shape
@@ -28,9 +28,8 @@ CK <: Nat
     val leftGrad: Expression[V, K, Plus[M, CK]] = left.grad(variable)
     val rightGrad: Expression[V, K, Plus[M, CK]] = right.grad(variable)
 
-    leftGrad / right.broadcast[Nat._0, M](Domain(), variable.dom).asInstanceOf[Expression[V, K, Plus[M, CK]]] -
-      left.broadcast[Nat._0, M](Domain(), variable.dom).asInstanceOf[Expression[V, K, Plus[M, CK]]] * rightGrad /
-        (right * right).broadcast[Nat._0, M](Domain(), variable.dom).asInstanceOf[Expression[V, K, Plus[M, CK]]]
+    leftGrad / right.broadcastCov[M](variable.dom) -
+      left.broadcastCov[M](variable.dom) * rightGrad / (right * right).broadcastCov[M](variable.dom)
   }
 }
 

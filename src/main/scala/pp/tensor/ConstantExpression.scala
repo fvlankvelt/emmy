@@ -1,15 +1,15 @@
 package pp.tensor
 
-import breeze.math.Semiring
+import breeze.math.Field
 
 import scala.reflect.ClassTag
 
-case class ConstantExpression[V: ClassTag : Semiring, K <: Nat, CK <: Nat]
+case class ConstantExpression[V: ClassTag : Field, K <: Nat, CK <: Nat]
 (
   value: Tensor[V, K, CK]
 ) extends Expression[V, K, CK] {
 
-  val ringV = implicitly[Semiring[V]]
+  val ringV = implicitly[Field[V]]
   val ctV = implicitly[ClassTag[V]]
 
   val shape = TensorShape(value.dom, value.mod)

@@ -1,12 +1,12 @@
 package pp.tensor
 
-import breeze.math.Semiring
+import breeze.math.Field
 
 import scala.reflect.ClassTag
 
 trait Expression[V, K <: Nat, CK <: Nat] {
 
-  implicit val ringV: Semiring[V]
+  implicit val ringV: Field[V]
   implicit val ctV: ClassTag[V]
 
   def shape: TensorShape[K, CK]
@@ -33,6 +33,9 @@ trait Expression[V, K <: Nat, CK <: Nat] {
 
   def transpose[L <: Nat : ToInt, CL <: Nat : ToInt]: Expression[V, Plus[Min[K, L], CL], Plus[Min[CK, CL], L]] =
     TransposeExpression[V, K, CK, L, CL](this)
+
+  def broadcastCov[L <: Nat : ToInt](mod: Domain[L]): Expression[V, K, Plus[L, CK]] =
+    broadcast[Nat._0, L](Domain(), mod).asInstanceOf[Expression[V, K, Plus[L, CK]]]
 
   def broadcast[L <: Nat : ToInt, CL <: Nat : ToInt](dom: Domain[L], mod: Domain[CL]): Expression[V, Plus[K, L], Plus[CL, CK]] =
     outer(ConstantExpression(Tensor.ones(dom, mod)))

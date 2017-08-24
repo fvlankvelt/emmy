@@ -1,12 +1,12 @@
 package pp.tensor
 
 import breeze.linalg.DenseMatrix
-import breeze.math.Semiring
+import breeze.math.Field
 
 import scala.reflect.ClassTag
 
 case class OuterExpression[
-V: ClassTag : Semiring,
+V: ClassTag : Field,
 KL <: Nat,
 CKL <: Nat,
 KR <: Nat,
@@ -14,7 +14,7 @@ CKR <: Nat
 ](left: Expression[V, KL, CKL], right: Expression[V, KR, CKR])
   extends Expression[V, Plus[KL, KR], Plus[CKR, CKL]] {
 
-  val ringV = implicitly[Semiring[V]]
+  val ringV = implicitly[Field[V]]
   val ctV = implicitly[ClassTag[V]]
 
   override val shape = left.shape.outer(right.shape)

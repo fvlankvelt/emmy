@@ -1,18 +1,18 @@
 package pp.tensor
 
-import breeze.math.Semiring
+import breeze.math.Field
 
 import scala.reflect.ClassTag
 
 case class PlusExpression[
-V: ClassTag : Semiring,
+V: ClassTag : Field,
 K <: Nat,
 CK <: Nat
 ](left: Expression[V, K, CK], right: Expression[V, K, CK])
   extends Expression[V, K, CK] {
   assert(left.shape == right.shape)
 
-  val ringV = implicitly[Semiring[V]]
+  val ringV = implicitly[Field[V]]
   val ctV = implicitly[ClassTag[V]]
 
   override val shape = left.shape
