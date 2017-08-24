@@ -51,6 +51,10 @@ case class TensorShape[K <: Nat, CK <: Nat](dom: Domain[K], mod: Domain[CK]) {
     )
   }
 
+  def broadcast[L <: Nat : ToInt, CL <: Nat : ToInt](dom: Domain[L], mod: Domain[CL]): TensorShape[Plus[K, L], Plus[CL, CK]] = {
+
+  }
+
   def outer[L <: Nat, CL <: Nat](right: TensorShape[L, CL]): TensorShape[Plus[K, L], Plus[CL, CK]] = {
     val left = this
     implicit val varInt = new ToInt[Plus[K, L]] {

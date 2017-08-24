@@ -34,7 +34,18 @@ trait Expression[V, K <: Nat, CK <: Nat] {
   def transpose[L <: Nat : ToInt, CL <: Nat : ToInt]: Expression[V, Plus[Min[K, L], CL], Plus[Min[CK, CL], L]] =
     TransposeExpression[V, K, CK, L, CL](this)
 
+  def broadcast[L <: Nat : ToInt, CL <: Nat : ToInt](dom: Domain[L], mod: Domain[CL]): Expression[V, Plus[K, L], Plus[CL, CK]] =
+    outer(ConstantExpression(Tensor.ones(dom, mod)))
+
+  def unary_- : Expression[V, K, CK] = NegExpression(this)
+
   def +(other: Expression[V, K, CK]): Expression[V, K, CK] = PlusExpression(this, other)
+
+  def -(other: Expression[V, K, CK]): Expression[V, K, CK] = MinExpression(this, other)
+
+  def *(other: Expression[V, K, CK]): Expression[V, K, CK] = MulExpression(this, other)
+
+  def /(other: Expression[V, K, CK]): Expression[V, K, CK] = DivExpression(this, other)
 
   def outer[OK <: Nat : ToInt, OCK <: Nat : ToInt](other: Expression[V, OK, OCK]): Expression[V, Plus[K, OK], Plus[OCK, CK]] =
     new OuterExpression[V, K, CK, OK, OCK](this, other)
