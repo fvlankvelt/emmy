@@ -44,6 +44,13 @@ CL <: Nat : ToInt
     Tensor[V, Plus[Min[K, L], CL], Plus[Min[CK, CL], L]](shape.dom, shape.mod, newData)
   }
 
-  override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = ???
+  override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = {
+    val upstream = orig.grad(variable)
+    val result = upstream.transpose[L, M]
+      .shiftLeft[L]
+      .transpose[L, CL]
+      .shiftRight[CL]
+      .transpose[M, CL]
+    result.asInstanceOf[Expression[V, Plus[Min[K, L], CL], Plus[M, Plus[Min[CK, CL], L]]]]
+  }
 }
-
