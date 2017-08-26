@@ -1,6 +1,5 @@
 package pp.tensor
 
-import breeze.linalg.Axis
 import breeze.math.Field
 
 import scala.reflect.ClassTag

@@ -50,6 +50,8 @@ trait Expression[V, K <: Nat, CK <: Nat] {
 
   def /(other: Expression[V, K, CK]): Expression[V, K, CK] = DivExpression(this, other)
 
+  def ^(other: Expression[V, K, CK]): Expression[V, K, CK] = PowExpression(this, other)
+
   def outer[OK <: Nat : ToInt, OCK <: Nat : ToInt](other: Expression[V, OK, OCK]): Expression[V, Plus[K, OK], Plus[OCK, CK]] =
     new OuterExpression[V, K, CK, OK, OCK](this, other)
 }
