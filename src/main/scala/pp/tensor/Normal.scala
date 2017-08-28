@@ -1,11 +1,12 @@
 package pp.tensor
 
 import breeze.math.Field
+import pp.tensor.Function.ValueConverter
 
 import scala.reflect.ClassTag
 
 case class Normal[
-V: ClassTag : Field,
+V: ClassTag : Field : ValueConverter,
 K <: Nat,
 CK <: Nat
 ](mu: Expression[V, K, CK], sigma: Expression[V, K, CK])
