@@ -1,7 +1,5 @@
 package pp
 
-import scalaz.Leibniz
-
 package object tensor {
 
   sealed trait Nat {
@@ -11,9 +9,6 @@ package object tensor {
   }
 
   object Nat {
-    // Equality on nats
-    type ===[A <: Nat, B <: Nat] = Leibniz[Nothing, Nat, A, B]
-
     type _0 = Zero
     type _1 = Succ[Zero]
     type _2 = Succ[_1]
@@ -38,22 +33,6 @@ package object tensor {
   type Plus[A <: Nat, B <: Nat] = A#Add[B]
   type Min[A <: Nat, B <: Nat] = A#Sub[B]
 
-  trait PlusZero[N <: Nat] {
-
-    import Nat.===
-
-    val proof: Plus[N, Nat._0] === N
-  }
-
-  object PlusZero {
-
-    import Nat.===
-
-    implicit val zeroPlusZero: PlusZero[Zero] = new PlusZero[Zero] {
-      override val proof : Plus[Zero, Zero] === Zero = Leibniz.refl
-    }
-  }
-
   trait ToInt[N <: Nat] {
     def apply(): Int
   }
@@ -66,6 +45,11 @@ package object tensor {
     implicit def succToInt[N <: Nat](implicit prev: ToInt[N]): ToInt[Succ[N]] = new ToInt[Succ[N]] {
       override def apply() = prev.apply() + 1
     }
+  }
+
+  implicit class richDouble(val v: Double) {
+
+    def *[V, K <: Nat, CK <: Nat](expr: Expression[V, K, CK]) = ScaleExpression(expr, v)
   }
 
 }

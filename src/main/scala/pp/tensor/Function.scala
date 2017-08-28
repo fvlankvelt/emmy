@@ -1,5 +1,6 @@
 package pp.tensor
 
+import breeze.linalg.DenseMatrix
 import breeze.math.Field
 
 import scala.reflect.ClassTag
@@ -57,6 +58,22 @@ object Function {
       override def grad[M <: Nat : ToInt](other: Variable[V, M]) =
         throw new NotImplementedError()
    }
+
+  def sum[V : ClassTag : Field, K <: Nat, CK <: Nat](expr: Expression[V, K, CK]): Expression[V, Zero, Zero] = {
+    new Expression[V, Zero, Zero] {
+      val ringV = expr.ringV
+      val ctV = expr.ctV
+
+      override def shape = TensorShape(Domain(), Domain())
+
+      override def eval() = {
+        val s = breeze.linalg.sum(expr.eval().data)
+        Tensor[V, Zero, Zero](shape.dom, shape.mod, DenseMatrix.create(1, 1, Array(s)))
+      }
+
+      override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = ???
+    }
+  }
 
   /*
 

@@ -40,7 +40,7 @@ trait Expression[V, K <: Nat, CK <: Nat] {
   def broadcast[L <: Nat : ToInt, CL <: Nat : ToInt](dom: Domain[L], mod: Domain[CL]): Expression[V, Plus[K, L], Plus[CL, CK]] =
     outer(ConstantExpression(Tensor.ones(dom, mod)))
 
-  def unary_- : Expression[V, K, CK] = NegExpression(this)
+  def unary_- : Expression[V, K, CK] = ScaleExpression(this, -1)
 
   def +(other: Expression[V, K, CK]): Expression[V, K, CK] = PlusExpression(this, other)
 
@@ -48,7 +48,11 @@ trait Expression[V, K <: Nat, CK <: Nat] {
 
   def *(other: Expression[V, K, CK]): Expression[V, K, CK] = MulExpression(this, other)
 
+  def *(scale: Double) = ScaleExpression(this, scale)
+
   def /(other: Expression[V, K, CK]): Expression[V, K, CK] = DivExpression(this, other)
+
+  def /(scale: Double) = ScaleExpression(this, 1.0 / scale)
 
   def ^(other: Expression[V, K, CK]): Expression[V, K, CK] = PowExpression(this, other)
 

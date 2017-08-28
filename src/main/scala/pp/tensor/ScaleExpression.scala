@@ -4,11 +4,11 @@ import breeze.math.Field
 
 import scala.reflect.ClassTag
 
-case class NegExpression[
+case class ScaleExpression[
 V: ClassTag : Field,
 K <: Nat,
 CK <: Nat
-](upstream: Expression[V, K, CK])
+](upstream: Expression[V, K, CK], scale: Double)
   extends Expression[V, K, CK] {
 
   val ringV = implicitly[Field[V]]
@@ -17,11 +17,11 @@ CK <: Nat
   override val shape = upstream.shape
 
   override def eval() = {
-    Tensor[V, K, CK](shape.dom, shape.mod, -upstream.eval().data)
+    Tensor[V, K, CK](shape.dom, shape.mod, scale * upstream.eval().data)
   }
 
   override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = {
-    -upstream.grad(variable)
+    scale * upstream.grad(variable)
   }
 }
 
