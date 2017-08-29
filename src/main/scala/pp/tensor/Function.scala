@@ -1,104 +1,74 @@
 package pp.tensor
 
 import breeze.linalg.DenseMatrix
-import breeze.math.Field
-
-import scala.reflect.ClassTag
 
 object Function {
 
-  trait ValueConverter[V] {
-    def toDouble(value: V): Double
-    def toV(value: Double): V
-    def wrap(fn: Double => Double) : V => V =
-      (value: V) => toV(fn(toDouble(value)))
-  }
-  implicit val doubleConverter : ValueConverter[Double] = new ValueConverter[Double] {
-    override def toDouble(value: Double) = value
-    override def toV(value: Double) = value
-  }
-  implicit val floatConverter : ValueConverter[Float] = new ValueConverter[Float] {
-    override def toDouble(value: Float) = value
-    override def toV(value: Double) = value.toFloat
-  }
+  def log[K <: Nat, CK <: Nat](variable: Expression[K, CK]): Expression[K, CK] =
+    new Expression[K, CK] {
 
-  private implicit def logImpl[V](implicit converter: ValueConverter[V]) = new breeze.numerics.log.Impl[V, V] {
-    override def apply(v: V) = converter.wrap(breeze.numerics.log.logDoubleImpl.apply)(v)
-  }
-
-  def log[V: ClassTag : Field : ValueConverter, K <: Nat, CK <: Nat](variable: Expression[V, K, CK]): Expression[V, K, CK] =
-    new Expression[V, K, CK] {
-
-      val ringV = variable.ringV
-      val ctV = variable.ctV
       val shape = variable.shape
 
       override def eval() = {
         val upstream = variable.eval()
-        Tensor[V, K, CK](shape.dom, shape.mod, breeze.numerics.log(upstream.data))
+        Tensor[K, CK](shape.dom, shape.mod, breeze.numerics.log(upstream.data))
       }
 
-      override def grad[M <: Nat : ToInt](other: Variable[V, M]) = {
+      override def grad[M <: Nat : ToInt](other: Variable[M]) = {
         val gradient = variable.grad(other)
         gradient / variable.broadcastCov(other.dom)
       }
     }
 
-  private implicit def lgammaImpl[V](implicit converter: ValueConverter[V]) = new breeze.numerics.lgamma.Impl[V, V] {
-    override def apply(v: V) = converter.wrap(breeze.numerics.lgamma.lgammaImplDouble.apply)(v)
-  }
+  def lgamma[K <: Nat, CK <: Nat](variable: Expression[K, CK]): Expression[K, CK] =
+    new Expression[K, CK] {
 
-  def lgamma[V: ClassTag : Field : ValueConverter, K <: Nat, CK <: Nat](variable: Expression[V, K, CK]): Expression[V, K, CK] =
-    new Expression[V, K, CK] {
-
-      val ringV = variable.ringV
-      val ctV = variable.ctV
       val shape = variable.shape
+
+      implicit val lgammaImpl = new breeze.numerics.lgamma.Impl[Float, Float] {
+        override def apply(v: Float) = breeze.numerics.lgamma.lgammaImplDouble(v.toDouble).toFloat
+      }
 
       override def eval() = {
         val upstream = variable.eval()
-        Tensor[V, K, CK](shape.dom, shape.mod, breeze.numerics.lgamma(upstream.data))
+        Tensor[K, CK](shape.dom, shape.mod, breeze.numerics.lgamma(upstream.data))
       }
 
-      override def grad[M <: Nat : ToInt](other: Variable[V, M]) = {
+      override def grad[M <: Nat : ToInt](other: Variable[M]) = {
         val gradient = variable.grad(other)
         gradient * digamma(variable).broadcastCov(other.dom)
       }
     }
 
-  private implicit def digammaImpl[V](implicit converter: ValueConverter[V]) = new breeze.numerics.digamma.Impl[V, V] {
-    override def apply(v: V) = converter.wrap(breeze.numerics.digamma.digammaImplDouble.apply)(v)
-  }
+  def digamma[K <: Nat, CK <: Nat](variable: Expression[K, CK]): Expression[K, CK] =
+    new Expression[K, CK] {
 
-  def digamma[V: ClassTag : Field : ValueConverter, K <: Nat, CK <: Nat](variable: Expression[V, K, CK]): Expression[V, K, CK] =
-    new Expression[V, K, CK] {
-
-      val ringV = variable.ringV
-      val ctV = variable.ctV
       val shape = variable.shape
+
+      implicit val digammaImpl = new breeze.numerics.digamma.Impl[Float, Float] {
+        override def apply(v: Float) = breeze.numerics.digamma.digammaImplDouble(v.toDouble).toFloat
+      }
 
       override def eval() = {
         val upstream = variable.eval()
-        Tensor[V, K, CK](shape.dom, shape.mod, breeze.numerics.digamma(upstream.data))
+        Tensor[K, CK](shape.dom, shape.mod, breeze.numerics.digamma(upstream.data))
       }
 
-      override def grad[M <: Nat : ToInt](other: Variable[V, M]) =
+      override def grad[M <: Nat : ToInt](other: Variable[M]) =
         throw new NotImplementedError()
    }
 
-  def sum[V : ClassTag : Field, K <: Nat, CK <: Nat](expr: Expression[V, K, CK]): Expression[V, Zero, Zero] = {
-    new Expression[V, Zero, Zero] {
-      val ringV = expr.ringV
-      val ctV = expr.ctV
+  def sum[K <: Nat, CK <: Nat](expr: Expression[K, CK]): Expression[Zero, Zero] = {
+    new Expression[Zero, Zero] {
 
       override def shape = TensorShape(Domain(), Domain())
 
       override def eval() = {
         val s = breeze.linalg.sum(expr.eval().data)
-        Tensor[V, Zero, Zero](shape.dom, shape.mod, DenseMatrix.create(1, 1, Array(s)))
+        Tensor[Zero, Zero](shape.dom, shape.mod, DenseMatrix.create[Float](1, 1, Array(s)))
       }
 
-      override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = ???
+      override def grad[M <: Nat : ToInt](variable: Variable[M]) = ???
     }
   }
 

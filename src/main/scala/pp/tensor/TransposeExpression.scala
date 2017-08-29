@@ -1,21 +1,14 @@
 package pp.tensor
 
 import breeze.linalg.View
-import breeze.math.Semiring
-
-import scala.reflect.ClassTag
 
 case class TransposeExpression[
-V: ClassTag : Semiring,
 K <: Nat,
 CK <: Nat,
 L <: Nat : ToInt,
 CL <: Nat : ToInt
-](orig: Expression[V, K, CK])
-  extends Expression[V, Plus[Min[K, L], CL], Plus[Min[CK, CL], L]] {
-
-  val ringV = orig.ringV
-  val ctV = orig.ctV
+](orig: Expression[K, CK])
+  extends Expression[Plus[Min[K, L], CL], Plus[Min[CK, CL], L]] {
 
   override val shape = orig.shape.transpose[L, CL]
 
@@ -41,16 +34,16 @@ CL <: Nat : ToInt
         (col * blockRows) until ((col + 1) * blockRows)
       ) := view.t
     }
-    Tensor[V, Plus[Min[K, L], CL], Plus[Min[CK, CL], L]](shape.dom, shape.mod, newData)
+    Tensor[Plus[Min[K, L], CL], Plus[Min[CK, CL], L]](shape.dom, shape.mod, newData)
   }
 
-  override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = {
+  override def grad[M <: Nat : ToInt](variable: Variable[M]) = {
     val upstream = orig.grad(variable)
     val result = upstream.transpose[L, M]
       .shiftLeft[L]
       .transpose[L, CL]
       .shiftRight[CL]
       .transpose[M, CL]
-    result.asInstanceOf[Expression[V, Plus[Min[K, L], CL], Plus[M, Plus[Min[CK, CL], L]]]]
+    result.asInstanceOf[Expression[Plus[Min[K, L], CL], Plus[M, Plus[Min[CK, CL], L]]]]
   }
 }

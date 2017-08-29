@@ -1,25 +1,21 @@
 package pp.tensor
 
 import breeze.linalg.DenseMatrix
-import breeze.math.Semiring
+case class Tensor[DOM <: Nat, MOD <: Nat](dom: Domain[DOM], mod: Domain[MOD], data: DenseMatrix[Float]) {
 
-import scala.reflect.ClassTag
-
-case class Tensor[V: Semiring : ClassTag, DOM <: Nat, MOD <: Nat](dom: Domain[DOM], mod: Domain[MOD], data: DenseMatrix[V]) {
-
-  def transpose: Tensor[V, MOD, DOM] = Tensor(mod, dom, data.t)
+  def transpose: Tensor[MOD, DOM] = Tensor(mod, dom, data.t)
 }
 
 object Tensor {
 
-  def apply[V: Semiring : ClassTag, DOM <: Nat, MOD <: Nat](dom: Domain[DOM], mod: Domain[MOD]) =
-    Tensor[V, DOM, MOD](dom, mod, DenseMatrix.zeros[V](dom.size, mod.size))
+  def apply[DOM <: Nat, MOD <: Nat](dom: Domain[DOM], mod: Domain[MOD]): Tensor[DOM, MOD] =
+    Tensor[DOM, MOD](dom, mod, DenseMatrix.zeros[Float](dom.size, mod.size))
 
-  def ones[V: Semiring : ClassTag, DOM <: Nat, MOD <: Nat](dom: Domain[DOM], mod: Domain[MOD]) =
-    Tensor[V, DOM, MOD](dom, mod, DenseMatrix.ones[V](dom.size, mod.size))
+  def ones[DOM <: Nat, MOD <: Nat](dom: Domain[DOM], mod: Domain[MOD]) =
+    Tensor[DOM, MOD](dom, mod, DenseMatrix.ones[Float](dom.size, mod.size))
 
-  def eye[V: Semiring : ClassTag, DOM <: Nat](dom: Domain[DOM]) = {
-    Tensor[V, DOM, DOM](dom, dom, DenseMatrix.eye[V](dom.size))
+  def eye[DOM <: Nat](dom: Domain[DOM]) = {
+    Tensor[DOM, DOM](dom, dom, DenseMatrix.eye[Float](dom.size))
   }
 
 }

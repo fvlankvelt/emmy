@@ -16,12 +16,12 @@ class TensorsSpec extends FlatSpec {
   }
 
   "variable" should "have covariant gradient" in {
-    val a = Variable[Float, Nat._1](Domain(1))
-    val b = Variable[Float, Nat._1](Domain(2))
-    val t = Variable[Float, Nat._1](Domain(3))
+    val a = Variable[Nat._1](Domain(1))
+    val b = Variable[Nat._1](Domain(2))
+    val t = Variable[Nat._1](Domain(3))
     val c = a.grad(a)
-    val d: Expression[Float, Nat._1, Nat._1] = a.grad(b)
-    val x: Expression[Float, Nat._2, Nat._1] = (a outer b) grad t
+    val d: Expression[Nat._1, Nat._1] = a.grad(b)
+    val x: Expression[Nat._2, Nat._1] = (a outer b) grad t
   }
 
 }

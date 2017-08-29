@@ -1,14 +1,7 @@
 package pp.tensor
 
-import breeze.math.Field
-
-import scala.reflect.ClassTag
-
-case class Variable[V: Field : ClassTag, L <: Nat : ToInt](dom: Domain[L])
-  extends Expression[V, L, Zero] {
-
-  val ringV = implicitly[Field[V]]
-  val ctV = implicitly[ClassTag[V]]
+case class Variable[L <: Nat : ToInt](dom: Domain[L])
+  extends Expression[L, Zero] {
 
   val shape = TensorShape(dom, Domain())
 
@@ -16,12 +9,12 @@ case class Variable[V: Field : ClassTag, L <: Nat : ToInt](dom: Domain[L])
     throw new NotImplementedError("Variable should not be evaluated")
   }
 
-  override def grad[M <: Nat : ToInt](variable: Variable[V, M]): Expression[V, L, Plus[M, Nat._0]] = {
+  override def grad[M <: Nat : ToInt](variable: Variable[M]): Expression[L, Plus[M, Nat._0]] = {
     if (this eq variable) {
-      new ConstantExpression[V, L, L](Tensor.eye[V, L](dom)) // ugh, but cast will succeed
+      new ConstantExpression[L, L](Tensor.eye[L](dom)) // ugh, but cast will succeed
     } else {
-      new ConstantExpression[V, L, M](Tensor[V, L, M](dom, variable.dom))
+      new ConstantExpression[L, M](Tensor[L, M](dom, variable.dom))
     }
-  }.asInstanceOf[Expression[V, L, Plus[M, Nat._0]]]
+  }.asInstanceOf[Expression[L, Plus[M, Nat._0]]]
 }
 

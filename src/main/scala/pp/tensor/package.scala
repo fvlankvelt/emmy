@@ -47,9 +47,9 @@ package object tensor {
     }
   }
 
-  implicit class richDouble(val v: Double) {
+  implicit class richDouble(val v: Float) {
 
-    def *[V, K <: Nat, CK <: Nat](expr: Expression[V, K, CK]) = ScaleExpression(expr, v)
+    def *[K <: Nat, CK <: Nat](expr: Expression[K, CK]) = ScaleExpression(expr, v)
   }
 
 }

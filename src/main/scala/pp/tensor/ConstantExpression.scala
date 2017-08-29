@@ -1,23 +1,16 @@
 package pp.tensor
 
-import breeze.math.Field
-
-import scala.reflect.ClassTag
-
-case class ConstantExpression[V: ClassTag : Field, K <: Nat, CK <: Nat]
+case class ConstantExpression[K <: Nat, CK <: Nat]
 (
-  value: Tensor[V, K, CK]
-) extends Expression[V, K, CK] {
-
-  val ringV = implicitly[Field[V]]
-  val ctV = implicitly[ClassTag[V]]
+  value: Tensor[K, CK]
+) extends Expression[K, CK] {
 
   val shape = TensorShape(value.dom, value.mod)
 
   override def eval() = value
 
-  override def grad[M <: Nat : ToInt](variable: Variable[V, M]) = {
-    new ConstantExpression[V, K, Plus[M, CK]](Tensor[V, K, Plus[M, CK]](shape.dom, Domain.join(variable.dom, shape.mod)))
+  override def grad[M <: Nat : ToInt](variable: Variable[M]) = {
+    new ConstantExpression[K, Plus[M, CK]](Tensor[K, Plus[M, CK]](shape.dom, Domain.join(variable.dom, shape.mod)))
   }
 }
 
