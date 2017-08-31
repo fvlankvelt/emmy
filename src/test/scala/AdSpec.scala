@@ -20,4 +20,18 @@ class AdSpec extends FlatSpec {
     val z = y.grad(x)
     assert(z == List(List(2.0, 0.0), List(0.0, 4.0)))
   }
+
+  it should "calculate derivative of a scalar function" in {
+    val x = Var[Id, Double](2.0)
+    val y = pp.log(x)
+    val z: Double = y.grad(x)
+    assert(z == 0.5)
+  }
+
+  it should "calculate derivative of a function applied to a list" in {
+    val x = Var[List, Double](List(1.0, 2.0))
+    val y = pp.log(x)
+    val z = y.grad(x)
+    assert(z == List(List(1.0, 0.0), List(0.0, 0.5)))
+  }
 }
