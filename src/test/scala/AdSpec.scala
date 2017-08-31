@@ -12,6 +12,12 @@ class AdSpec extends FlatSpec {
     val y = x * x
     val z: Double = y.grad(x)
     assert(z == 4.0)
-    print(z)
+  }
+
+  it should "calculate vector derivative on List" in {
+    val x = Var[List, Double](List(1.0, 2.0))
+    val y = x * x
+    val z = y.grad(x)
+    assert(z == List(List(2.0, 0.0), List(0.0, 4.0)))
   }
 }

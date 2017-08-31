@@ -118,16 +118,14 @@ package object ad {
 
 trait ValueType[U[_], V] extends Numeric[U[V]] {
 
-//  def A: Numeric[V]
-
-//  def lift(a: V): U[V]
-
-//  def fromInt(i: Int): U[V] = lift(A fromInt i)
+  def valueVT: Numeric[V]
 }
 
 object ValueType {
 
   implicit def idType[V](implicit numV: Numeric[V]): ValueType[Id, V] = new ValueType[Id, V] {
+
+    val valueVT = numV
 
     override def plus(x: Scalaz.Id[V], y: Scalaz.Id[V]) = numV.plus(x, y)
 
@@ -150,20 +148,20 @@ object ValueType {
     override def compare(x: Scalaz.Id[V], y: Scalaz.Id[V]) = numV.compare(x, y)
   }
 
-  /*
-  implicit def listType[V](implicit numA: Numeric[V]): ValueType[List, V] = new ValueType[List, V] {
+  implicit def listType[V](implicit numV: Numeric[V]): ValueType[List, V] = new ValueType[List, V] {
 
-    override def A = numA
+    val valueVT = numV
 
-    override def lift(a: V) = List(a)
+    override def plus(x: List[V], y: List[V]) = (x zip y).map { case (xv, yv) => numV.plus(xv, yv) }
 
-    override def plus(x: List[V], y: List[V]) = (x zip y).map { case (xv, yv) => A.plus(xv, yv) }
+    override def minus(x: List[V], y: List[V]) = (x zip y).map { case (xv, yv) => numV.minus(xv, yv) }
 
-    override def minus(x: List[V], y: List[V]) = (x zip y).map { case (xv, yv) => A.minus(xv, yv) }
+    override def times(x: List[V], y: List[V]) = (x zip y).map {
+      case (xv, yv) =>
+        numV.times(xv, yv)
+    }
 
-    override def times(x: List[V], y: List[V]) = (x zip y).map { case (xv, yv) => A.times(xv, yv) }
-
-    override def negate(x: List[V]) = x.map(A.negate)
+    override def negate(x: List[V]) = x.map(numV.negate)
 
     override def toInt(x: List[V]) = ???
 
@@ -174,8 +172,9 @@ object ValueType {
     override def toDouble(x: List[V]) = ???
 
     override def compare(x: List[V], y: List[V]) = ???
+
+    override def fromInt(x: Int) = List(numV.fromInt(x))
   }
-  */
 }
 
 trait Node[U[_], V] extends (() => U[V]) {
@@ -241,7 +240,7 @@ case class Var[U[_], V](data: U[V])(implicit val vt: ValueType[U, V]) extends No
     val ops = implicitly[ContainerOps[W]]
     val shape = ops.shapeOf(v())
     if (self == v) {
-      ops.eye(shape, vt.one, vt.zero).asInstanceOf[Gradient[W, U, V]]
+      ops.eye(shape, vt.valueVT.one, vt.valueVT.zero).asInstanceOf[Gradient[W, U, V]]
     } else {
       ops.fill(shape, vt.zero)
     }
@@ -266,8 +265,10 @@ case class Multiply[U[_], V](lhs: Node[U, V], rhs: Node[U, V])(implicit val vt: 
   override def grad[W[_] : ContainerOps](v: Var[W, V]) = {
     val ops = implicitly[ContainerOps[W]]
     val lv = lhs()
+    val leftg = lhs.grad(v)
     val rv = rhs()
-    ops.zipMap(lhs.grad(v), rhs.grad(v)) {
+    val rightg = rhs.grad(v)
+    ops.zipMap(leftg, rightg) {
       (lg, rg) =>
         vt.plus(
           vt.times(lg, rv),
