@@ -99,11 +99,39 @@ package object ad {
 
   type Gradient[W[_], A[_], V] = W[A[V]]
 
+  trait ScalarOps[V, Y] {
+
+    def times(v: V, y: Y): V
+
+    def div(v: V, y: Y): V
+  }
+
+  object ScalarOps {
+
+    implicit val doubleOps: ScalarOps[Double, Double] =
+      new ScalarOps[Double, Double] {
+
+        override def times(v: Double, y: Double) = v * y
+
+        override def div(v: Double, y: Double) = v / y
+      }
+
+    implicit def liftOps[U[_], V, W](implicit base: ScalarOps[V, W], cOps: ContainerOps[U]): ScalarOps[U[V], W] =
+      new ScalarOps[U[V], W] {
+
+        override def times(v: U[V], y: W) = cOps.map(v)(vi => base.times(vi, y))
+
+        override def div(v: U[V], y: W) = cOps.map(v)(vi => base.div(vi, y))
+      }
+  }
+
   trait Floating[V] extends Fractional[V] {
 
     def log: RichFunc[V]
 
     def sum: Accumulator[V]
+
+    def divS[Y](x: V, y: Y)(implicit so: ScalarOps[V, Y]): V = so.div(x, y)
   }
 
   object Floating {
@@ -197,8 +225,7 @@ package object ad {
 
       override def negate(x: U[V]) = ops.map(x)(numV.negate)
 
-      override def fromInt(x: Int) =
-        throw new NotImplementedError()
+      override def fromInt(x: Int) = ???
 
       override def toInt(x: U[V]) = ???
 
@@ -277,11 +304,15 @@ package object ad {
 
     def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U, V]
 
-    def unary_-() = Negate(this)
+    def unary_-() = Scale(this, vt.valueVT.negate)
 
     def *(rhs: Node[U, V, S]) = Multiply(this, rhs)
 
+    def *[W](value: W)(implicit sOps: ScalarOps[V, W]) = Scale[U, V, S](this, v => sOps.times(v, value))
+
     def /(rhs: Node[U, V, S]) = Divide(this, rhs)
+
+    def /[W](value: W)(implicit sOps: ScalarOps[V, W]) = Scale[U, V, S](this, v => sOps.div(v, value))
 
     def +(rhs: Node[U, V, S]) = Add(this, rhs)
 
@@ -309,7 +340,7 @@ package object ad {
 
     override implicit val ops = ContainerOps.idOps
 
-    override val shape : Shape = null
+    override val shape: Shape = null
 
     private val opsU = implicitly[ContainerOps[U]]
 
@@ -364,15 +395,15 @@ package object ad {
     override def apply() = value
   }
 
-  case class Negate[U[_], V, S](up: Node[U, V, S])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
+  case class Scale[U[_], V, S](up: Node[U, V, S], fn: V => V)(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
 
     override val shape = up.shape
 
-    override def apply() = vt.negate(up())
+    override def apply() = ops.map(up())(fn)
 
     override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
-      val ops = implicitly[ContainerOps[W]]
-      ops.map(up.grad(v)) { g => vt.negate(g) }
+      val opsW = implicitly[ContainerOps[W]]
+      opsW.map(up.grad(v)) { g => ops.map(g)(fn) }
     }
 
   }
@@ -512,7 +543,7 @@ package object ad {
 
   trait Observation[U[_], V, S] extends Node[U, V, S] with Stochast[V]
 
-  case class Normal[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])(implicit vt: ValueType[U, V], ops: ContainerOps.Aux[U, S]) extends Distribution[U, V, S] {
+  case class Normal[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])(implicit vt: ValueType[U, V], ops: ContainerOps.Aux[U, S], so: ScalarOps[V, Double]) extends Distribution[U, V, S] {
 
     override def sample(implicit model: Model) = NormalSample(mu, sigma)
 
@@ -528,14 +559,17 @@ package object ad {
 
     def vt: ValueType[U, V]
 
+    implicit def so: ScalarOps[V, Double]
+
     override def logp(): Node[Id, V, Any] = {
       implicit val numV = vt.valueVT
       val x = (this - mu) / sigma
-      sum(-(log(sigma) - x * x / Constant(ops.fill(shape, vt.valueVT.fromInt(2)))))
+      val parts = -(log(sigma) - x * x / 2.0)
+      sum(parts)
     }
   }
 
-  case class NormalSample[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S], model: Model)
+  case class NormalSample[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S], val so: ScalarOps[V, Double], model: Model)
     extends Sample[U, V, S] with NormalStochast[U, V, S] {
 
     assert(mu.shape == sigma.shape)
@@ -545,7 +579,7 @@ package object ad {
     override def apply() = model.valueOf(this)
   }
 
-  case class NormalObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S], value: U[V])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S])
+  case class NormalObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S], value: U[V])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S], val so: ScalarOps[V, Double])
     extends Observation[U, V, S] with NormalStochast[U, V, S] with ConstantLike[U, V, S] {
 
     assert(mu.shape == sigma.shape)
