@@ -1,7 +1,6 @@
 import org.scalatest.FlatSpec
 import pp.ad._
 
-import scalaz._
 import scalaz.Scalaz._
 
 class AdSpec extends FlatSpec {
@@ -48,6 +47,31 @@ class AdSpec extends FlatSpec {
 
     val normal = Normal(mu, sigma)
     val observation = normal.observe(List(1.0, 2.0))
-    print(observation.logp()())
+    println(observation.logp()())
+  }
+
+  it should "be able to implement linear regression" in {
+    implicit val model = new Model {
+      override def valueOf[U[_], V, S](v: Variable[U, V, S])(implicit vo: ValueOps.Aux[U, V, S], ops: ContainerOps.Aux[U, S]) = {
+        vo.bind(v.shape).rnd
+      }
+    }
+    val a = Normal[Id, Double, Any](Constant[Id, Double, Any](2.0), Constant[Id, Double, Any](1.0)).sample
+    val b = Normal[List, Double, Int](Constant(List(0.0, 0.0)), Constant(List(1.0, 1.0))).sample
+    val e = Normal[Id, Double, Any](Constant[Id, Double, Any](1.0), Constant[Id, Double, Any](1.0)).sample
+
+    val data = List(
+      (List(1.0, 2.0), 0.5),
+      (List(2.0, 1.0), 1.0)
+    )
+
+    val s = data.map {
+      case (x, y) =>
+        val cst = Constant[List, Double, Int](x)
+        val s = a + sum(cst * b)
+        Normal(s, e).observe(y)
+    }
+    val logp = s.map(_.logp()).sum
+    println(logp())
   }
 }

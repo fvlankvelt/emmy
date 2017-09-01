@@ -31,14 +31,18 @@ trait Variable[U[_], V, S] extends Node[U, V, S] {
 
 object Variable {
 
-  def apply[U[_], V, S](v: U[V])(implicit valueType: ValueOps[U, V], cOps: ContainerOps.Aux[U, S]): Variable[U, V, S] = new Variable[U, V, S] {
+  def apply[U[_], V, S](v: U[V])
+                       (implicit
+                        valueType: ValueOps[U, V],
+                        cOps: ContainerOps.Aux[U, S]): Variable[U, V, S] =
+    new Variable[U, V, S] {
 
-    override val shape = cOps.shapeOf(v)
+      override val shape = cOps.shapeOf(v)
 
-    override implicit val vt = valueType
+      override implicit val vt = valueType
 
-    override implicit val ops = cOps
+      override implicit val ops = cOps
 
-    override def value = v
-  }
+      override def value = v
+    }
 }

@@ -32,6 +32,7 @@ package object ad {
     }
 
     trait Impl[V] extends UnaryValueFunc[V]
+
   }
 
   trait CollectNodeFunc {
@@ -49,11 +50,12 @@ package object ad {
     }
 
     trait Impl[V] extends CollectValueFunc[V]
+
   }
 
   trait Model {
 
-    def valueOf[U[_], V, S](v: Variable[U, V, S]): U[V]
+    def valueOf[U[_], V, S](v: Variable[U, V, S])(implicit vo: ValueOps.Aux[U, V, S], ops: ContainerOps.Aux[U, S]): U[V]
   }
 
   object log extends UnaryNodeFunc {
@@ -64,6 +66,29 @@ package object ad {
   object sum extends CollectNodeFunc {
 
     implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.sum)
+  }
+
+  implicit def nodeNumeric[U[_], V, S](implicit vOps: ValueOps[U, V], cOps: ContainerOps.Aux[U, S]): Numeric[Node[U, V, S]] = new Numeric[Node[U, V, S]] {
+
+    override def plus(x: Node[U, V, S], y: Node[U, V, S]) = x + y
+
+    override def minus(x: Node[U, V, S], y: Node[U, V, S]) = x - y
+
+    override def times(x: Node[U, V, S], y: Node[U, V, S]) = x * y
+
+    override def negate(x: Node[U, V, S]) = -x
+
+    override def fromInt(x: Int) = Constant(cOps.lift(vOps.valueVT.fromInt(x)))
+
+    override def toInt(x: Node[U, V, S]) = ???
+
+    override def toLong(x: Node[U, V, S]) = ???
+
+    override def toFloat(x: Node[U, V, S]) = ???
+
+    override def toDouble(x: Node[U, V, S]) = ???
+
+    override def compare(x: Node[U, V, S], y: Node[U, V, S]) = ???
   }
 
 }
