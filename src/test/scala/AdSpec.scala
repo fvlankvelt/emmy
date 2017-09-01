@@ -42,7 +42,7 @@ class AdSpec extends FlatSpec {
     assert(z == List(List(1.0, 0.0), List(0.0, 0.5)))
   }
 
-  it should "allow sampling" in {
+  it should "calculate probability of observation" in {
     val mu = Variable[List, Double, Int](List(0.0, 0.0))
     val sigma = Variable[List, Double, Int](List(1.0, 1.0))
 
