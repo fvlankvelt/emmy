@@ -197,7 +197,8 @@ package object ad {
 
       override def negate(x: U[V]) = ops.map(x)(numV.negate)
 
-      override def fromInt(x: Int) = ???
+      override def fromInt(x: Int) =
+        throw new NotImplementedError()
 
       override def toInt(x: U[V]) = ???
 
@@ -217,7 +218,7 @@ package object ad {
 
   trait UnaryFunc {
 
-    def apply[U[_], V](node: Node[U, V])(implicit vt: ValueType[U, V], ops: ContainerOps[U], impl: Impl[V]): Node[U, V] =
+    def apply[U[_], V, S](node: Node[U, V, S])(implicit vt: ValueType[U, V], ops: ContainerOps.Aux[U, S], impl: Impl[V]): Node[U, V, S] =
       UnaryNode(node, impl)
 
     trait Impl[V] extends RichFunc[V]
@@ -245,7 +246,7 @@ package object ad {
 
   trait AccumulatingFunc {
 
-    def apply[U[_], V](node: Node[U, V])(implicit vt: ValueType[U, V], idT: ValueType[Id, V], ops: ContainerOps[U], impl: Impl[V]): Node[Id, V] =
+    def apply[U[_], V, S](node: Node[U, V, S])(implicit vt: ValueType[U, V], idT: ValueType[Id, V], ops: ContainerOps[U], impl: Impl[V]): Node[Id, V, Any] =
       AccumulatingNode(node, impl)
 
     trait Impl[V] extends Accumulator[V]
@@ -265,31 +266,37 @@ package object ad {
     implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.sum)
   }
 
-  trait Node[U[_], V] extends (() => U[V]) {
+  trait Node[U[_], V, S] extends (() => U[V]) {
+
+    type Shape = S
 
     implicit val vt: ValueType[U, V]
+    implicit val ops: ContainerOps.Aux[U, Shape]
 
-    def grad[W[_] : ContainerOps](v: Variable[W, V]): Gradient[W, U, V]
+    def shape: Shape
+
+    def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U, V]
 
     def unary_-() = Negate(this)
 
-    def *(rhs: Node[U, V]) = Multiply(this, rhs)
+    def *(rhs: Node[U, V, S]) = Multiply(this, rhs)
 
-    def /(rhs: Node[U, V]) = Divide(this, rhs)
+    def /(rhs: Node[U, V, S]) = Divide(this, rhs)
 
-    def +(rhs: Node[U, V]) = Add(this, rhs)
+    def +(rhs: Node[U, V, S]) = Add(this, rhs)
 
-    def -(rhs: Node[U, V]) = Subtract(this, rhs)
+    def -(rhs: Node[U, V, S]) = Subtract(this, rhs)
   }
 
-  case class UnaryNode[U[_] : ContainerOps, V](up: Node[U, V], rf: RichFunc[V])(implicit val vt: ValueType[U, V]) extends Node[U, V] {
-    private val ops = implicitly[ContainerOps[U]]
+  case class UnaryNode[U[_], V, S](up: Node[U, V, S], rf: RichFunc[V])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
+
+    override val shape = up.shape
 
     override def apply() = {
       ops.map(up())(rf.apply)
     }
 
-    override def grad[W[_] : ContainerOps](v: Variable[W, V]) = {
+    override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
       val opsW = implicitly[ContainerOps[W]]
       val ug = up.grad(v)
       opsW.map(ug) { v =>
@@ -298,11 +305,16 @@ package object ad {
     }
   }
 
-  case class AccumulatingNode[U[_] : ContainerOps, V, A](up: Node[U, V], rf: Accumulator[V])(implicit st: ValueType[U, V], val vt: ValueType[Id, V]) extends Node[Id, V] {
-    private val ops = implicitly[ContainerOps[U]]
+  case class AccumulatingNode[U[_] : ContainerOps, V, S, A](up: Node[U, V, S], rf: Accumulator[V])(implicit st: ValueType[U, V], val vt: ValueType[Id, V]) extends Node[Id, V, Any] {
+
+    override implicit val ops = ContainerOps.idOps
+
+    override val shape : Shape = null
+
+    private val opsU = implicitly[ContainerOps[U]]
 
     override def apply() = {
-      ops.foldLeft(up())(rf.start)(rf.apply)
+      opsU.foldLeft(up())(rf.start)(rf.apply)
     }
 
     // f(f(f(zero, x1), x2), x3)
@@ -317,12 +329,12 @@ package object ad {
 
     // ug = (x1', x2', x3')
 
-    override def grad[W[_] : ContainerOps](v: Variable[W, V]) = {
+    override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
       val opsW = implicitly[ContainerOps[W]]
       val ug = up.grad(v)
       val result = opsW.map(ug) { g =>
-        val vg = ops.zipMap(up(), g)((_, _))
-        ops.foldLeft(vg)((rf.start, vt.zero)) {
+        val vg = opsU.zipMap(up(), g)((_, _))
+        opsU.foldLeft(vg)((rf.start, vt.zero)) {
           (acc, x) =>
             val (av, ag) = acc
             val (xv, xg) = x
@@ -336,35 +348,44 @@ package object ad {
     }
   }
 
-  trait ConstantLike[U[_], V] extends Node[U, V] {
+  trait ConstantLike[U[_], V, S] extends Node[U, V, S] {
 
-    override def grad[W[_] : ContainerOps](v: Variable[W, V]) = {
+    override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
       val ops = implicitly[ContainerOps[W]]
       val shape = ops.shapeOf(v())
       ops.fill(shape, vt.zero)
     }
   }
 
-  case class Constant[U[_], V](value: U[V])(implicit val vt: ValueType[U, V]) extends ConstantLike[U, V] {
+  case class Constant[U[_], V, S](value: U[V])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S]) extends ConstantLike[U, V, S] {
+
+    override val shape = ops.shapeOf(value)
+
     override def apply() = value
   }
 
-  case class Negate[U[_], V](up: Node[U, V])(implicit val vt: ValueType[U, V]) extends Node[U, V] {
+  case class Negate[U[_], V, S](up: Node[U, V, S])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
+
+    override val shape = up.shape
 
     override def apply() = vt.negate(up())
 
-    override def grad[W[_] : ContainerOps](v: Variable[W, V]) = {
+    override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
       val ops = implicitly[ContainerOps[W]]
       ops.map(up.grad(v)) { g => vt.negate(g) }
     }
 
   }
 
-  case class Multiply[U[_], V](lhs: Node[U, V], rhs: Node[U, V])(implicit val vt: ValueType[U, V]) extends Node[U, V] {
+  case class Multiply[U[_], V, S](lhs: Node[U, V, S], rhs: Node[U, V, S])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
+
+    assert(lhs.shape == rhs.shape)
+
+    override val shape = lhs.shape
 
     override def apply() = vt.times(lhs(), rhs())
 
-    override def grad[W[_] : ContainerOps](v: Variable[W, V]) = {
+    override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
       val ops = implicitly[ContainerOps[W]]
       val lv = lhs()
       val leftg = lhs.grad(v)
@@ -382,11 +403,15 @@ package object ad {
   }
 
 
-  case class Divide[U[_], V](lhs: Node[U, V], rhs: Node[U, V])(implicit val vt: ValueType[U, V]) extends Node[U, V] {
+  case class Divide[U[_], V, S](lhs: Node[U, V, S], rhs: Node[U, V, S])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
+
+    assert(lhs.shape == rhs.shape)
+
+    override val shape = lhs.shape
 
     override def apply() = vt.div(lhs(), rhs())
 
-    override def grad[W[_] : ContainerOps](v: Variable[W, V]) = {
+    override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
       val ops = implicitly[ContainerOps[W]]
       val lv = lhs()
       val leftg = lhs.grad(v)
@@ -406,11 +431,15 @@ package object ad {
 
   }
 
-  case class Add[U[_], V](lhs: Node[U, V], rhs: Node[U, V])(implicit val vt: ValueType[U, V]) extends Node[U, V] {
+  case class Add[U[_], V, S](lhs: Node[U, V, S], rhs: Node[U, V, S])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
+
+    assert(lhs.shape == rhs.shape)
+
+    override val shape = lhs.shape
 
     override def apply() = vt.plus(lhs(), rhs())
 
-    override def grad[W[_] : ContainerOps](v: Variable[W, V]) = {
+    override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
       val ops = implicitly[ContainerOps[W]]
       ops.zipMap(lhs.grad(v), rhs.grad(v)) {
         (lg, rg) => vt.plus(lg, rg)
@@ -419,11 +448,15 @@ package object ad {
 
   }
 
-  case class Subtract[U[_], V](lhs: Node[U, V], rhs: Node[U, V])(implicit val vt: ValueType[U, V]) extends Node[U, V] {
+  case class Subtract[U[_], V, S](lhs: Node[U, V, S], rhs: Node[U, V, S])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
+
+    assert(lhs.shape == rhs.shape)
+
+    override val shape = lhs.shape
 
     override def apply() = vt.minus(lhs(), rhs())
 
-    override def grad[W[_] : ContainerOps](v: Variable[W, V]) = {
+    override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
       val ops = implicitly[ContainerOps[W]]
       ops.zipMap(lhs.grad(v), rhs.grad(v)) {
         (lg, rg) => vt.minus(lg, rg)
@@ -434,12 +467,12 @@ package object ad {
 
   trait Model {
 
-    def valueOf[U[_], V](v: Variable[U, V]): U[V]
+    def valueOf[U[_], V, S](v: Variable[U, V, S]): U[V]
   }
 
-  trait Variable[U[_], V] extends Node[U, V] {
+  trait Variable[U[_], V, S] extends Node[U, V, S] {
 
-    override def grad[W[_] : ContainerOps](v: Variable[W, V]) = {
+    override def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
       val ops = implicitly[ContainerOps[W]]
       val shape = ops.shapeOf(v())
       if (this == v) {
@@ -452,65 +485,72 @@ package object ad {
 
   object Variable {
 
-    def apply[U[_], V](value: U[V])(implicit valueType: ValueType[U, V]): Variable[U, V] = new Variable[U, V] {
+    def apply[U[_], V, S](value: U[V])(implicit valueType: ValueType[U, V], cOps: ContainerOps.Aux[U, S]): Variable[U, V, S] = new Variable[U, V, S] {
+
+      override val shape = cOps.shapeOf(value)
+
       override implicit val vt = valueType
+
+      override implicit val ops = cOps
 
       override def apply() = value
     }
   }
 
-  trait Distribution[U[_], V] {
+  trait Distribution[U[_], V, S] {
 
-    def sample(implicit model: Model): Sample[U, V]
+    def sample(implicit model: Model): Sample[U, V, S]
 
-    def observe(data: U[V]): Observation[U, V]
+    def observe(data: U[V]): Observation[U, V, S]
   }
 
-  trait Stochast[U[_], V] {
-    def logp(): Node[Id, V]
+  trait Stochast[V] {
+    def logp(): Node[Id, V, Any]
   }
 
-  trait Sample[U[_], V] extends Variable[U, V] with Stochast[U, V]
+  trait Sample[U[_], V, S] extends Variable[U, V, S] with Stochast[V]
 
-  trait Observation[U[_], V] extends Node[U, V] with Stochast[U, V]
+  trait Observation[U[_], V, S] extends Node[U, V, S] with Stochast[V]
 
-  case class Normal[U[_] : ContainerOps, V](mu: Node[U, V], sigma: Node[U, V])(implicit vt: ValueType[U, V]) extends Distribution[U, V] {
+  case class Normal[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])(implicit vt: ValueType[U, V], ops: ContainerOps.Aux[U, S]) extends Distribution[U, V, S] {
 
     override def sample(implicit model: Model) = NormalSample(mu, sigma)
 
     override def observe(data: U[V]) = NormalObservation(mu, sigma, data)
   }
 
-  trait NormalStochast[U[_], V] extends Stochast[U, V] {
-    self: Node[U, V] =>
+  trait NormalStochast[U[_], V, S] extends Stochast[V] {
+    self: Node[U, V, S] =>
 
-    def mu: Node[U, V]
+    def mu: Node[U, V, S]
 
-    def sigma: Node[U, V]
+    def sigma: Node[U, V, S]
 
     def vt: ValueType[U, V]
 
-    implicit def ops: ContainerOps[U]
-
-    override def logp(): Node[Id, V] = {
+    override def logp(): Node[Id, V, Any] = {
       implicit val numV = vt.valueVT
       val x = (this - mu) / sigma
-      sum(-(log(sigma) - x * x / Constant(vt.fromInt(2))))
+      sum(-(log(sigma) - x * x / Constant(ops.fill(shape, vt.valueVT.fromInt(2)))))
     }
   }
 
-  case class NormalSample[U[_] : ContainerOps, V](mu: Node[U, V], sigma: Node[U, V])(implicit val vt: ValueType[U, V], model: Model)
-    extends Sample[U, V] with NormalStochast[U, V] {
+  case class NormalSample[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S], model: Model)
+    extends Sample[U, V, S] with NormalStochast[U, V, S] {
 
-    override val ops = implicitly[ContainerOps[U]]
+    assert(mu.shape == sigma.shape)
+
+    override val shape = mu.shape
 
     override def apply() = model.valueOf(this)
   }
 
-  case class NormalObservation[U[_] : ContainerOps, V](mu: Node[U, V], sigma: Node[U, V], value: U[V])(implicit val vt: ValueType[U, V])
-    extends Observation[U, V] with NormalStochast[U, V] with ConstantLike[U, V] {
+  case class NormalObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S], value: U[V])(implicit val vt: ValueType[U, V], val ops: ContainerOps.Aux[U, S])
+    extends Observation[U, V, S] with NormalStochast[U, V, S] with ConstantLike[U, V, S] {
 
-    override val ops = implicitly[ContainerOps[U]]
+    assert(mu.shape == sigma.shape)
+
+    override val shape = mu.shape
 
     override def apply() = value
   }
