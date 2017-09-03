@@ -33,13 +33,13 @@ object Variable {
 
   def apply[U[_], V, S](v: U[V])
                        (implicit
-                        valueType: ValueOps[U, V],
+                        valueType: ValueOps[U, V, S],
                         cOps: ContainerOps.Aux[U, S]): Variable[U, V, S] =
     new Variable[U, V, S] {
 
       override val shape = cOps.shapeOf(v)
 
-      override implicit val vt = valueType
+      override implicit val vt = valueType.bind(shape)
 
       override implicit val ops = cOps
 

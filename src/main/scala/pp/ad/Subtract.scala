@@ -1,6 +1,6 @@
 package pp.ad
 
-case class Subtract[U[_], V, S](lhs: Node[U, V, S], rhs: Node[U, V, S])(implicit val vt: ValueOps[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
+case class Subtract[U[_], V, S](lhs: Node[U, V, S], rhs: Node[U, V, S])(implicit val vt: ValueOps[U, V, S], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
 
   assert(lhs.shape == rhs.shape)
 

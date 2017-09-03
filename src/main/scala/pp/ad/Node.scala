@@ -5,7 +5,7 @@ trait Node[U[_], V, S] extends (() => U[V]) {
 
   type Shape = S
 
-  implicit val vt: ValueOps[U, V]
+  implicit val vt: ValueOps[U, V, S]
   implicit val ops: ContainerOps.Aux[U, Shape]
   protected lazy val _value: U[V] = value
 

@@ -1,12 +1,15 @@
 package pp.ad
 
+import scalaz.Scalaz
 import scalaz.Scalaz.Id
 
-case class AccumulatingNode[U[_] : ContainerOps, V, S, A](up: Node[U, V, S], rf: CollectValueFunc[V])(implicit st: ValueOps[U, V], val vt: ValueOps[Id, V]) extends Node[Id, V, Any] {
+case class AccumulatingNode[U[_] : ContainerOps, V, S, A](up: Node[U, V, S], rf: CollectValueFunc[V])(implicit st: ValueOps[U, V, S], val vo: ValueOps[Id, V, Any]) extends Node[Id, V, Any] {
 
   override implicit val ops = ContainerOps.idOps
 
   override val shape: Shape = null
+
+  override implicit val vt = vo.bind(shape)
 
   private val opsU = implicitly[ContainerOps[U]]
 

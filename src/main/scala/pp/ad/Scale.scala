@@ -1,6 +1,6 @@
 package pp.ad
 
-case class Scale[U[_], V, S](up: Node[U, V, S], fn: V => V)(implicit val vt: ValueOps[U, V], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
+case class Scale[U[_], V, S](up: Node[U, V, S], fn: V => V)(implicit val vt: ValueOps[U, V, S], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
 
   override val shape = up.shape
 

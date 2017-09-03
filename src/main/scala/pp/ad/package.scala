@@ -21,7 +21,7 @@ package object ad {
 
   trait UnaryNodeFunc {
 
-    def apply[U[_], V, S](node: Node[U, V, S])(implicit vt: ValueOps[U, V], ops: ContainerOps.Aux[U, S], impl: Impl[V]): Node[U, V, S] =
+    def apply[U[_], V, S](node: Node[U, V, S])(implicit vt: ValueOps[U, V, S], ops: ContainerOps.Aux[U, S], impl: Impl[V]): Node[U, V, S] =
       UnaryNode(node, impl)
 
     def wrapFunc[V](fn: UnaryValueFunc[V]): Impl[V] = new Impl[V] {
@@ -37,7 +37,7 @@ package object ad {
 
   trait CollectNodeFunc {
 
-    def apply[U[_], V, S](node: Node[U, V, S])(implicit vt: ValueOps[U, V], idT: ValueOps[Id, V], ops: ContainerOps[U], impl: Impl[V]): Node[Id, V, Any] =
+    def apply[U[_], V, S](node: Node[U, V, S])(implicit vt: ValueOps[U, V, S], idT: ValueOps[Id, V, Any], ops: ContainerOps[U], impl: Impl[V]): Node[Id, V, Any] =
       AccumulatingNode(node, impl)
 
     def wrapFunc[V](fn: CollectValueFunc[V]): Impl[V] = new Impl[V] {
@@ -55,7 +55,7 @@ package object ad {
 
   trait Model {
 
-    def valueOf[U[_], V, S](v: Variable[U, V, S])(implicit vo: ValueOps.Aux[U, V, S], ops: ContainerOps.Aux[U, S]): U[V]
+    def valueOf[U[_], V, S](v: Variable[U, V, S])(implicit vo: ValueOps[U, V, S], ops: ContainerOps.Aux[U, S]): U[V]
   }
 
   object log extends UnaryNodeFunc {
@@ -68,7 +68,7 @@ package object ad {
     implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.sum)
   }
 
-  implicit def nodeNumeric[U[_], V, S](implicit vOps: ValueOps[U, V], cOps: ContainerOps.Aux[U, S]): Numeric[Node[U, V, S]] = new Numeric[Node[U, V, S]] {
+  implicit def nodeNumeric[U[_], V, S](implicit vOps: ValueOps[U, V, S], cOps: ContainerOps.Aux[U, S]): Numeric[Node[U, V, S]] = new Numeric[Node[U, V, S]] {
 
     override def plus(x: Node[U, V, S], y: Node[U, V, S]) = x + y
 

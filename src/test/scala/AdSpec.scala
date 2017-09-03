@@ -52,11 +52,13 @@ class AdSpec extends FlatSpec {
 
   it should "be able to implement linear regression" in {
     implicit val model = new Model {
-      override def valueOf[U[_], V, S](v: Variable[U, V, S])(implicit vo: ValueOps.Aux[U, V, S], ops: ContainerOps.Aux[U, S]) = {
+      override def valueOf[U[_], V, S](v: Variable[U, V, S])(implicit vo: ValueOps[U, V, S], ops: ContainerOps.Aux[U, S]) = {
         vo.bind(v.shape).rnd
       }
     }
-    val a = Normal[Id, Double, Any](Constant[Id, Double, Any](2.0), Constant[Id, Double, Any](1.0)).sample
+    val mu = Variable[Id, Double, Any](0.0)
+    val sigma = Variable[Id, Double, Any](1.0)
+    val a = Normal[Id, Double, Any](mu, sigma).sample
     val b = Normal[List, Double, Int](Constant(List(0.0, 0.0)), Constant(List(1.0, 1.0))).sample
     val e = Normal[Id, Double, Any](Constant[Id, Double, Any](1.0), Constant[Id, Double, Any](1.0)).sample
 
@@ -73,5 +75,8 @@ class AdSpec extends FlatSpec {
     }
     val logp = s.map(_.logp()).sum
     println(logp())
+
+    val g_mu: Double = logp.grad(mu)
+    println(g_mu)
   }
 }

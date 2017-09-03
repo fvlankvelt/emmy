@@ -4,8 +4,8 @@ import scalaz.Scalaz.Id
 
 case class Normal[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
                              (implicit
-                              vt: ValueOps[U, V],
-                              idT: ValueOps[Id, V],
+                              vt: ValueOps[U, V, S],
+                              idT: ValueOps[Id, V, Any],
                               ops: ContainerOps.Aux[U, S],
                               so: ScalarOps[V, Double])
   extends Distribution[U, V, S] {
@@ -22,9 +22,9 @@ trait NormalStochast[U[_], V, S] extends Stochast[V] {
 
   def sigma: Node[U, V, S]
 
-  def vt: ValueOps[U, V]
+  def vt: ValueOps[U, V, S]
 
-  implicit def idT: ValueOps[Id, V]
+  implicit def idT: ValueOps[Id, V, Any]
 
   implicit def so: ScalarOps[V, Double]
 
@@ -37,8 +37,8 @@ trait NormalStochast[U[_], V, S] extends Stochast[V] {
 
 case class NormalSample[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
                                    (implicit
-                                    val vt: ValueOps[U, V],
-                                    val idT: ValueOps[Id, V],
+                                    val vo: ValueOps[U, V, S],
+                                    val idT: ValueOps[Id, V, Any],
                                     val ops: ContainerOps.Aux[U, S],
                                     val so: ScalarOps[V, Double],
                                     model: Model)
@@ -48,13 +48,15 @@ case class NormalSample[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
 
   override val shape = mu.shape
 
+  override implicit val vt = vo.bind(shape)
+
   override def value = model.valueOf(this)
 }
 
 case class NormalObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S], value: U[V])
                                         (implicit
-                                         val vt: ValueOps[U, V],
-                                         val idT: ValueOps[Id, V],
+                                         val vo: ValueOps[U, V, S],
+                                         val idT: ValueOps[Id, V, Any],
                                          val ops: ContainerOps.Aux[U, S],
                                          val so: ScalarOps[V, Double])
   extends Observation[U, V, S] with NormalStochast[U, V, S] with ConstantLike[U, V, S] {
@@ -62,4 +64,6 @@ case class NormalObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S]
   assert(mu.shape == sigma.shape)
 
   override val shape = mu.shape
+
+  override implicit val vt = vo.bind(shape)
 }

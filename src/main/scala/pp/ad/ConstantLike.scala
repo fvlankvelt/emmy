@@ -10,8 +10,10 @@ trait ConstantLike[U[_], V, S] extends Node[U, V, S] {
   }
 }
 
-case class Constant[U[_], V, S](value: U[V])(implicit val vt: ValueOps[U, V], val ops: ContainerOps.Aux[U, S]) extends ConstantLike[U, V, S] {
+case class Constant[U[_], V, S](value: U[V])(implicit val vo: ValueOps[U, V, S], val ops: ContainerOps.Aux[U, S]) extends ConstantLike[U, V, S] {
 
   override val shape = ops.shapeOf(value)
+
+  override implicit val vt : ValueOps[U, V, S] = vo.bind(shape)
 }
 
