@@ -63,6 +63,11 @@ package object ad {
     implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.log)
   }
 
+  object lgamma extends UnaryNodeFunc {
+
+    implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.lgamma)
+  }
+
   object sum extends CollectNodeFunc {
 
     implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.sum)

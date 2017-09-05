@@ -7,6 +7,8 @@ trait Floating[V] extends Fractional[V] {
 
   def log: UnaryValueFunc[V]
 
+  def lgamma: UnaryValueFunc[V]
+
   def sum: CollectValueFunc[V]
 
   def rnd: V
@@ -23,6 +25,15 @@ object Floating {
       def apply(x: Double) = scala.math.log(x)
 
       def grad(x: Double) = 1.0 / x
+    }
+
+    override def lgamma = new UnaryValueFunc[Double] {
+
+      override def apply(value: Double) =
+        breeze.numerics.lgamma(value)
+
+      override def grad(value: Double) =
+      breeze.numerics.digamma(value)
     }
 
     override def sum = new CollectValueFunc[Double] {

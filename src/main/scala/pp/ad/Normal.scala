@@ -10,7 +10,7 @@ case class Normal[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
                               so: ScalarOps[V, Double])
   extends Distribution[U, V, S] {
 
-  override def sample(implicit model: Model) = NormalSample(mu, sigma)
+  def sample(implicit model: Model) = NormalSample(mu, sigma)
 
   override def observe(data: U[V]) = NormalObservation(mu, sigma, data)
 }

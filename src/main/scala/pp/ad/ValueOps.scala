@@ -34,6 +34,15 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
     override def apply(v: U[V]) = ops.map(v)(upstream.apply)
   }
 
+  override def lgamma = new UnaryValueFunc[U[V]] {
+
+    private val upstream = valueVT.lgamma
+
+    override def grad(v: U[V]) = ops.map(v)(upstream.grad)
+
+    override def apply(v: U[V]) = ops.map(v)(upstream.apply)
+  }
+
   override def sum = new CollectValueFunc[U[V]] {
 
     private val upstream = valueVT.sum
