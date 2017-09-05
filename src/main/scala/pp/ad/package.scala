@@ -96,4 +96,22 @@ package object ad {
     override def compare(x: Node[U, V, S], y: Node[U, V, S]) = ???
   }
 
+  implicit class RichScalar[W, U[_], V, S](value: W) {
+
+    def -(node: Node[U, V, S])(implicit sOps: ScalarOps[V, W]): Node[U, V, S] = {
+      -node + value
+    }
+
+    def +(node: Node[U, V, S])(implicit sOps: ScalarOps[V, W]): Node[U, V, S] = {
+      node + value
+    }
+
+    def *(node: Node[U, V, S])(implicit sOps: ScalarOps[V, W]): Node[U, V, S] = {
+      node * value
+    }
+
+    def /(node: Node[U, V, S])(implicit sOps: ScalarOps[V, W]): Node[U, V, S] = {
+      value * node.reciprocal()
+    }
+  }
 }

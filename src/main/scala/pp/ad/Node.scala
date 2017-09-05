@@ -27,19 +27,22 @@ trait Node[U[_], V, S] extends (() => U[V]) {
         vt.valueVT.negate(v1)
     })
 
+  def reciprocal(): Node[U, V, S] =
+    Reciprocal(this)
+
   // element-wise ops
 
   def *(rhs: Node[U, V, S]): Node[U, V, S] =
     Multiply(this, rhs)
 
   def /(rhs: Node[U, V, S]): Node[U, V, S] =
-    Divide(this, rhs)
+    Multiply(this, rhs.reciprocal())
 
   def +(rhs: Node[U, V, S]): Node[U, V, S] =
     Add(this, rhs)
 
   def -(rhs: Node[U, V, S]): Node[U, V, S] =
-    Subtract(this, rhs)
+    Add(this, -rhs)
 
   // scalar ops
 
