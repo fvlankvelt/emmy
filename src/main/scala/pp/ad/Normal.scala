@@ -10,9 +10,11 @@ case class Normal[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
                               so: ScalarOps[V, Double])
   extends Distribution[U, V, S] {
 
-  def sample(implicit model: Model) = NormalSample(mu, sigma)
+  override def sample(implicit model: Model) =
+    NormalSample(mu, sigma)
 
-  override def observe(data: U[V]) = NormalObservation(mu, sigma, data)
+  override def observe(data: U[V]) =
+    NormalObservation(mu, sigma, data)
 }
 
 trait NormalStochast[U[_], V, S] extends Stochast[V] {

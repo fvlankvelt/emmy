@@ -4,6 +4,8 @@ import scalaz.Scalaz.Id
 
 trait Distribution[U[_], V, S] {
 
+  def sample(implicit model: Model): Sample[U, V, S]
+
   def observe(data: U[V]): Observation[U, V, S]
 }
 

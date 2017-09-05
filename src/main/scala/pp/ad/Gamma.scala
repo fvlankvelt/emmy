@@ -10,7 +10,11 @@ case class Gamma[U[_], V, S](alpha: Node[U, V, S], beta: Node[U, V, S])
                               so: ScalarOps[V, Double])
   extends Distribution[U, V, S] {
 
-  override def observe(data: U[V]) = GammaObservation(alpha, beta, data)
+  override def sample(implicit model: Model) =
+    GammaSample(alpha, beta)
+
+  override def observe(data: U[V]) =
+    GammaObservation(alpha, beta, data)
 }
 
 trait GammaStochast[U[_], V, S] extends Stochast[V] {
@@ -28,14 +32,31 @@ trait GammaStochast[U[_], V, S] extends Stochast[V] {
 
   override def logp(): Node[Id, V, Any] = {
     implicit val numV = vt.valueVT
-    val regAlpha : Node[U, V, S] = alpha - 1.0
-    sum(alpha * log(beta) + regAlpha * log(this) - beta * this - lgamma(alpha))
+    sum(alpha * log(beta) + (alpha - 1.0) * log(this) - beta * this - lgamma(alpha))
   }
+}
+
+case class GammaSample[U[_], V, S](alpha: Node[U, V, S], beta: Node[U, V, S])
+                                   (implicit
+                                    vo: ValueOps[U, V, S],
+                                    val idT: ValueOps[Id, V, Any],
+                                    val ops: ContainerOps.Aux[U, S],
+                                    val so: ScalarOps[V, Double],
+                                    model: Model)
+  extends Sample[U, V, S] with GammaStochast[U, V, S] {
+
+  assert(alpha.shape == beta.shape)
+
+  override val shape = alpha.shape
+
+  override implicit val vt = vo.bind(shape)
+
+  override protected def value: U[V] = model.valueOf(this)
 }
 
 case class GammaObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S], value: U[V])
                                         (implicit
-                                         val vo: ValueOps[U, V, S],
+                                         vo: ValueOps[U, V, S],
                                          val idT: ValueOps[Id, V, Any],
                                          val ops: ContainerOps.Aux[U, S],
                                          val so: ScalarOps[V, Double])
