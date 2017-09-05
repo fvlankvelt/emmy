@@ -57,22 +57,34 @@ class AutoDiffSpec extends FlatSpec {
         vo.bind(v.shape).rnd
       }
     }
-    val a = Normal[Id, Double, Any](Constant[Id, Double, Any](0.0), Constant[Id, Double, Any](1.0)).sample
-    val b = Normal[List, Double, Int](Constant(List(0.0, 0.0)), Constant(List(1.0, 1.0))).sample
-    val e = Normal[Id, Double, Any](Constant[Id, Double, Any](1.0), Constant[Id, Double, Any](1.0)).sample
+    val a = Normal(
+      Constant[Id, Double, Any](0.0),
+      Constant[Id, Double, Any](1.0)
+    ).sample
+
+    val b = Normal(
+      Constant(List(0.0, 0.0)),
+      Constant(List(1.0, 1.0))
+    ).sample
+
+    val e = Normal(
+      Constant[Id, Double, Any](1.0),
+      Constant[Id, Double, Any](1.0)
+    ).sample
 
     val data = List(
       (List(1.0, 2.0), 0.5),
       (List(2.0, 1.0), 1.0)
     )
 
-    val s = data.map {
+    val observations = data.map {
       case (x, y) =>
         val cst = Constant[List, Double, Int](x)
         val s = a + sum(cst * b)
         Normal(s, e).observe(y)
     }
-    val logp = s.map(_.logp()).sum + a.logp() + b.logp() + e.logp()
+    val logp = observations.map(_.logp()).sum +
+      a.logp() + b.logp() + e.logp()
     println(logp())
 
     val g_a: Double = logp.grad(a)
