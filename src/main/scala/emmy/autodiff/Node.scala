@@ -1,4 +1,4 @@
-package pp.ad
+package emmy.autodiff
 
 
 trait Node[U[_], V, S] extends (() => U[V]) {

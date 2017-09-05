@@ -1,8 +1,8 @@
-package pp
+package emmy
 
 import scalaz.Scalaz.Id
 
-package object ad {
+package object autodiff {
 
   type Gradient[W[_], A[_], V] = W[A[V]]
 

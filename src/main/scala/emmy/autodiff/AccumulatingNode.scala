@@ -1,4 +1,4 @@
-package pp.ad
+package emmy.autodiff
 
 import scalaz.Scalaz
 import scalaz.Scalaz.Id

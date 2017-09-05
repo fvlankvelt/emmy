@@ -1,9 +1,10 @@
+package emmy.autodiff
+
 import org.scalatest.FlatSpec
-import pp.ad._
 
 import scalaz.Scalaz._
 
-class AdSpec extends FlatSpec {
+class AutoDiffSpec extends FlatSpec {
 
   "AD" should "calculate scalar derivative" in {
     val x = Variable[Id, Double, Any](2.0)

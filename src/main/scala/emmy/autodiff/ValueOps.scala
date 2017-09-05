@@ -1,4 +1,4 @@
-package pp.ad
+package emmy.autodiff
 
 
 trait ValueOps[U[_], V, Shape] extends Floating[U[V]] {

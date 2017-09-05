@@ -1,4 +1,4 @@
-package pp.ad
+package emmy.autodiff
 
 
 case class UnaryNode[U[_], V, S](up: Node[U, V, S], rf: UnaryValueFunc[V])(implicit val vt: ValueOps[U, V, S], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {

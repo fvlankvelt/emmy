@@ -1,8 +1,8 @@
-package pp.ad
+package emmy.autodiff
 
 import scalaz.Scalaz.Id
 
-case class Normal[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
+case class Gamma[U[_], V, S](alpha: Node[U, V, S], beta: Node[U, V, S])
                              (implicit
                               vt: ValueOps[U, V, S],
                               idT: ValueOps[Id, V, Any],
@@ -11,18 +11,18 @@ case class Normal[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
   extends Distribution[U, V, S] {
 
   override def sample(implicit model: Model) =
-    NormalSample(mu, sigma)
+    GammaSample(alpha, beta)
 
   override def observe(data: U[V]) =
-    NormalObservation(mu, sigma, data)
+    GammaObservation(alpha, beta, data)
 }
 
-trait NormalStochast[U[_], V, S] extends Stochast[V] {
+trait GammaStochast[U[_], V, S] extends Stochast[V] {
   self: Node[U, V, S] =>
 
-  def mu: Node[U, V, S]
+  def alpha: Node[U, V, S]
 
-  def sigma: Node[U, V, S]
+  def beta: Node[U, V, S]
 
   def vt: ValueOps[U, V, S]
 
@@ -32,32 +32,31 @@ trait NormalStochast[U[_], V, S] extends Stochast[V] {
 
   override def logp(): Node[Id, V, Any] = {
     implicit val numV = vt.valueVT
-    val x = (this - mu) / sigma
-    sum(-(log(sigma) - x * x / 2.0))
+    sum(alpha * log(beta) + (alpha - 1.0) * log(this) - beta * this - lgamma(alpha))
   }
 }
 
-case class NormalSample[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
+case class GammaSample[U[_], V, S](alpha: Node[U, V, S], beta: Node[U, V, S])
                                    (implicit
-                                    val vo: ValueOps[U, V, S],
+                                    vo: ValueOps[U, V, S],
                                     val idT: ValueOps[Id, V, Any],
                                     val ops: ContainerOps.Aux[U, S],
                                     val so: ScalarOps[V, Double],
                                     model: Model)
-  extends Sample[U, V, S] with NormalStochast[U, V, S] {
+  extends Sample[U, V, S] with GammaStochast[U, V, S] {
 
-  assert(mu.shape == sigma.shape)
+  assert(alpha.shape == beta.shape)
 
-  override val shape = mu.shape
+  override val shape = alpha.shape
 
   override implicit val vt = vo.bind(shape)
 
   override protected def value: U[V] = model.valueOf(this)
 }
 
-case class NormalObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S], value: U[V])
+case class GammaObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S], value: U[V])
                                         (implicit
-                                         val vo: ValueOps[U, V, S],
+                                         vo: ValueOps[U, V, S],
                                          val idT: ValueOps[Id, V, Any],
                                          val ops: ContainerOps.Aux[U, S],
                                          val so: ScalarOps[V, Double])

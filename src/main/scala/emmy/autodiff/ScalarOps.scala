@@ -1,4 +1,4 @@
-package pp.ad
+package emmy.autodiff
 
 
 trait ScalarOps[V, Y] {

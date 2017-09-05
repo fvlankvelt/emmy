@@ -1,4 +1,4 @@
-package pp.ad
+package emmy.autodiff
 
 case class Add[U[_], V, S](lhs: Node[U, V, S], rhs: Node[U, V, S])(implicit val vt: ValueOps[U, V, S], val ops: ContainerOps.Aux[U, S]) extends Node[U, V, S] {
 
