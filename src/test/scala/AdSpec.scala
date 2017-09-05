@@ -56,9 +56,7 @@ class AdSpec extends FlatSpec {
         vo.bind(v.shape).rnd
       }
     }
-    val mu = Variable[Id, Double, Any](0.0)
-    val sigma = Variable[Id, Double, Any](1.0)
-    val a = Normal[Id, Double, Any](mu, sigma).sample
+    val a = Normal[Id, Double, Any](Constant[Id, Double, Any](0.0), Constant[Id, Double, Any](1.0)).sample
     val b = Normal[List, Double, Int](Constant(List(0.0, 0.0)), Constant(List(1.0, 1.0))).sample
     val e = Normal[Id, Double, Any](Constant[Id, Double, Any](1.0), Constant[Id, Double, Any](1.0)).sample
 
@@ -73,10 +71,10 @@ class AdSpec extends FlatSpec {
         val s = a + sum(cst * b)
         Normal(s, e).observe(y)
     }
-    val logp = s.map(_.logp()).sum
+    val logp = s.map(_.logp()).sum + a.logp() + b.logp() + e.logp()
     println(logp())
 
-    val g_mu: Double = logp.grad(mu)
-    println(g_mu)
+    val g_a: Double = logp.grad(a)
+    println(g_a)
   }
 }

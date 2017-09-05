@@ -50,7 +50,7 @@ case class NormalSample[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
 
   override implicit val vt = vo.bind(shape)
 
-  override def value = model.valueOf(this)
+  override protected def value: U[V] = model.valueOf(this)
 }
 
 case class NormalObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S], value: U[V])
