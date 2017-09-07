@@ -1,4 +1,6 @@
-package emmy.autodiff
+package emmy.distribution
+
+import emmy.autodiff.{ConstantLike, ContainerOps, Node, ScalarOps, ValueOps, Variable, log, sum}
 
 import scalaz.Scalaz.Id
 
@@ -10,7 +12,7 @@ case class Normal[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
                               so: ScalarOps[V, Double])
   extends Distribution[U, V, S] {
 
-  override def sample(implicit model: Model) =
+  override def sample =
     NormalSample(mu, sigma)
 
   override def observe(data: U[V]) =
@@ -42,17 +44,14 @@ case class NormalSample[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S])
                                     val vo: ValueOps[U, V, S],
                                     val idT: ValueOps[Id, V, Any],
                                     val ops: ContainerOps.Aux[U, S],
-                                    val so: ScalarOps[V, Double],
-                                    model: Model)
-  extends Sample[U, V, S] with NormalStochast[U, V, S] {
+                                    val so: ScalarOps[V, Double])
+  extends Variable[U, V, S] with NormalStochast[U, V, S] {
 
   assert(mu.shape == sigma.shape)
 
   override val shape = mu.shape
 
   override implicit val vt = vo.bind(shape)
-
-  override protected def value: U[V] = model.valueOf(this)
 }
 
 case class NormalObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S], value: U[V])
@@ -65,7 +64,5 @@ case class NormalObservation[U[_], V, S](mu: Node[U, V, S], sigma: Node[U, V, S]
 
   assert(mu.shape == sigma.shape)
 
-  override val shape = mu.shape
-
-  override implicit val vt = vo.bind(shape)
+  override implicit val vt = vo.bind(ops.shapeOf(value))
 }

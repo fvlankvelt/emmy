@@ -1,22 +1,18 @@
 package emmy.autodiff
 
 
-trait Node[U[_], V, S] extends (() => U[V]) {
+trait Node[U[_], V, S] {
 
   type Shape = S
 
   implicit val vt: ValueOps[U, V, S]
   implicit val ops: ContainerOps.Aux[U, Shape]
-  protected lazy val _value: U[V] = value
-
-  override final def apply() = _value
 
   def shape: Shape
 
-  final def grad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U, V] =
-    v.get(this) {
-      calcGrad(v)
-    }
+  def apply(ec: EvaluationContext): U[V]
+
+  def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit  wOps: ContainerOps.Aux[W, T]): Gradient[W, U, V]
 
   def unary_-(): Node[U, V, S] =
     UnaryNode[U, V, S](this, new UnaryValueFunc[V] {
@@ -83,8 +79,4 @@ trait Node[U[_], V, S] extends (() => U[V]) {
         sOps.minus(v1, rhs)
     })
   }
-
-  protected def value: U[V]
-
-  protected def calcGrad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U, V]
 }

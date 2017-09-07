@@ -1,9 +1,12 @@
 package emmy.autodiff
 
-import scalaz.Scalaz
 import scalaz.Scalaz.Id
 
-case class AccumulatingNode[U[_] : ContainerOps, V, S, A](up: Node[U, V, S], rf: CollectValueFunc[V])(implicit st: ValueOps[U, V, S], val vo: ValueOps[Id, V, Any]) extends Node[Id, V, Any] {
+case class AccumulatingNode[U[_] : ContainerOps, V, S, A](up: Node[U, V, S], rf: CollectValueFunc[V])
+                                                         (implicit
+                                                          st: ValueOps[U, V, S],
+                                                          val vo: ValueOps[Id, V, Any])
+  extends Node[Id, V, Any] {
 
   override implicit val ops = ContainerOps.idOps
 
@@ -13,7 +16,9 @@ case class AccumulatingNode[U[_] : ContainerOps, V, S, A](up: Node[U, V, S], rf:
 
   private val opsU = implicitly[ContainerOps[U]]
 
-  override def value = opsU.foldLeft(up())(rf.start)(rf.apply)
+  override def apply(ec: EvaluationContext) = {
+    opsU.foldLeft(ec(up))(rf.start)(rf.apply)
+  }
 
   // f(f(f(zero, x1), x2), x3)
   // grad_v =>
@@ -27,11 +32,11 @@ case class AccumulatingNode[U[_] : ContainerOps, V, S, A](up: Node[U, V, S], rf:
 
   // ug = (x1', x2', x3')
 
-  override def calcGrad[W[_], T](v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit  wOps: ContainerOps.Aux[W, T]) = {
     val opsW = implicitly[ContainerOps[W]]
-    val ug = up.grad(v)
+    val ug = gc(up, v)
     val result = opsW.map(ug) { g =>
-      val vg = opsU.zipMap(up(), g)((_, _))
+      val vg = opsU.zipMap(gc(up), g)((_, _))
       opsU.foldLeft(vg)((rf.start, vt.zero)) {
         (acc, x) =>
           val (av, ag) = acc
