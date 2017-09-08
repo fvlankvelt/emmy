@@ -33,20 +33,9 @@ take the gradient.
 A more elaborate example for linear regression:
 ```scala
 // specify variables with priors
-val a = Normal(
-  Constant[Id, Double, Any](0.0),
-  Constant[Id, Double, Any](1.0)
-).sample
-
-val b = Normal(
-  Constant(List(0.0, 0.0)),
-  Constant(List(1.0, 1.0))
-).sample
-
-val e = Normal(
-  Constant[Id, Double, Any](1.0),
-  Constant[Id, Double, Any](1.0)
-).sample
+val a = Normal(0.0, 1.0).sample
+val b = Normal(List(0.0, 0.0), List(1.0, 1.0)).sample
+val e = Normal(1.0, 1.0).sample
 
 // the data in (X, Y) tuples
 val data = List(
@@ -57,17 +46,16 @@ val data = List(
 // bind the data to the linear model
 val observations = data.map {
   case (x, y) =>
-    val cst = Constant[List, Double, Int](x)
-    val s = a + sum(cst * b)
+    val s = a + sum(x * b)
     Normal(s, e).observe(y)
 }
 
 // calculate log posterior
 val logp = observations.map(_.logp()).sum +
   a.logp() + b.logp() + e.logp()
-println(logp())
+println(logp(ec))
 
-val g_a: Double = logp.grad(a)
+val g_a: Double = logp.grad(gc, a)
 println(g_a)
 ```
 which specifies an intercept `a`, a slope `b` and noise `e`.  Each of these variables are specified as samples from a prior.
