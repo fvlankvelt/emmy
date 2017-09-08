@@ -2,11 +2,11 @@ package emmy.autodiff
 
 import scalaz.Scalaz.Id
 
-case class AccumulatingNode[U[_] : ContainerOps, V, S, A](up: Node[U, V, S], rf: CollectValueFunc[V])
-                                                         (implicit
+case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U, V, S], rf: CollectValueFunc[V])
+                                                               (implicit
                                                           st: ValueOps[U, V, S],
                                                           val vo: ValueOps[Id, V, Any])
-  extends Node[Id, V, Any] {
+  extends Expression[Id, V, Any] {
 
   override implicit val ops = ContainerOps.idOps
 
@@ -15,6 +15,8 @@ case class AccumulatingNode[U[_] : ContainerOps, V, S, A](up: Node[U, V, S], rf:
   override implicit val vt = vo.bind(shape)
 
   private val opsU = implicitly[ContainerOps[U]]
+
+  override val parents = Seq(up)
 
   override def apply(ec: EvaluationContext) = {
     opsU.foldLeft(ec(up))(rf.start)(rf.apply)

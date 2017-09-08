@@ -3,7 +3,6 @@ package emmy.inference
 import emmy.autodiff.{ContainerOps, ValueOps, Variable}
 import emmy.distribution.Observation
 
-
 trait Model {
 
   // new API - the Model contains a distribution over all variables
@@ -16,5 +15,5 @@ trait Model {
 
 trait ModelSample {
 
-  def getSampleValue[U[_], V, S](n: Variable[U, V, S])(implicit vo: ValueOps[U, V, S], ops: ContainerOps.Aux[U, S]): U[V]
+  def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V]
 }

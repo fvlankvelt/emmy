@@ -1,12 +1,14 @@
 package emmy.autodiff
 
-case class Reciprocal[U[_], V, S](upstream: Node[U, V, S])
+case class Reciprocal[U[_], V, S](upstream: Expression[U, V, S])
                                  (implicit
                                   val vt: ValueOps[U, V, S],
                                   val ops: ContainerOps.Aux[U, S])
-  extends Node[U, V, S] {
+  extends Expression[U, V, S] {
 
   override val shape = upstream.shape
+
+  override val parents = Seq(upstream)
 
   override def apply(ec: EvaluationContext) = {
     vt.div(vt.one, ec(upstream))

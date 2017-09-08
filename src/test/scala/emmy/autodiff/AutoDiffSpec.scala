@@ -1,28 +1,33 @@
 package emmy.autodiff
 
 import emmy.autodiff.ContainerOps.Aux
-import emmy.distribution.Normal
+import emmy.distribution.{Normal, Observation}
+import emmy.inference.{Model, ModelSample}
 import org.scalatest.FlatSpec
 
+import scala.collection.mutable
 import scalaz.Scalaz._
 
 class AutoDiffSpec extends FlatSpec {
 
   val gc = new GradientContext {
 
-    override def apply[U[_], V, S](n: Node[U, V, S]) = {
+    private val cache = mutable.HashMap[AnyRef, Any]()
+
+    override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] = {
       n match {
-        case v : TestVariable[U, V, S] => v.value
+        case v: TestVariable[U, V, S] => v.value
+        case v: Variable[U, V, S] => cache.getOrElseUpdate(v, v.vt.rnd).asInstanceOf[U[V]]
         case _ => n.apply(this)
       }
     }
 
-    override def apply[W[_], U[_], V, T, S](n: Node[U, V, S], v: Variable[W, V, T])(implicit wOps: Aux[W, T]) = {
+    override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: Aux[W, T]): W[U[V]] = {
       n.grad(this, v)
     }
   }
 
-  val ec : EvaluationContext = gc
+  val ec: EvaluationContext = gc
 
   case class TestVariable[U[_], V, S](value: U[V])
                                      (implicit
@@ -85,20 +90,9 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "be able to implement linear regression" in {
-    val a = Normal(
-      Constant(0.0),
-      Constant(1.0)
-    ).sample
-
-    val b = Normal(
-      Constant(List(0.0, 0.0)),
-      Constant(List(1.0, 1.0))
-    ).sample
-
-    val e = Normal(
-      Constant(1.0),
-      Constant(1.0)
-    ).sample
+    val a = Normal(0.0, 1.0).sample
+    val b = Normal(List(0.0, 0.0), List(1.0, 1.0)).sample
+    val e = Normal(1.0, 1.0).sample
 
     val data = List(
       (List(1.0, 2.0), 0.5),
@@ -107,8 +101,7 @@ class AutoDiffSpec extends FlatSpec {
 
     val observations = data.map {
       case (x, y) =>
-        val cst = Constant(x)
-        val s = a + sum(cst * b)
+        val s = a + sum(x * b)
         Normal(s, e).observe(y)
     }
     val logp = observations.map(_.logp()).sum +
@@ -119,26 +112,57 @@ class AutoDiffSpec extends FlatSpec {
     println(g_a)
   }
 
-  /*
   it should "update variational parameters for each (minibatch of) data point(s)" in {
     val data = List(0.2, 1.0, 0.5)
 
-    val mu = Normal(Constant(0.0), Constant(1.0)).sample
-    val sigma = Normal(Constant(1.0), Constant(0.5)).sample
+    val mu = Normal(0.0, 1.0).sample
+    val sigma = Normal(1.0, 0.5).sample
     val dist = Normal(mu, sigma)
 
-    val initialModel = new Model {override def update[U[_], V, S](o: Observation[U, V, S]) = ???
-
-      override def sample() = ???
-
-      override def addVariable[U[_], V, S](variable: Variable[U, V, S]) = ???
-    }
+    val initialModel = SimpleModel(Set.empty, Map.empty)
 
     val newModel = data.foldLeft(initialModel) {
       case (m, d) =>
         val observation = dist.observe(d)
         m.update(observation)
     }
+    print(newModel)
   }
-  */
+
+  case class SimpleModel(known: Set[Node], samplers: Map[Node, Any]) extends Model {
+
+    override def update[U[_], V, S](observation: Observation[U, V, S]) = {
+
+      def collectVars(visited: Set[Node], vars: Map[Node, Any], node: Node): (Set[Node], Map[Node, Any]) = {
+        node.parents.foldLeft((visited, vars)) {
+          case ((curvis, curvars), p) =>
+            p match {
+              case _ if curvis.contains(p) =>
+                (curvis, curvars)
+              case v : Variable[W forSome { type W[_]}, _, _] =>
+                (curvis + p, curvars + (p -> new Sampler(v)))
+              case _ =>
+                collectVars(curvis + p, curvars + (p -> p), p)
+            }
+        }
+      }
+
+      val (newKnown, newVariables) = collectVars(known, samplers, observation)
+      SimpleModel(newKnown, newVariables)
+    }
+
+    override def sample() = new ModelSample {
+      override def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V] =
+        samplers(n).asInstanceOf[Sampler[U, V, S]].sample()
+    }
+
+  }
+
+  class Sampler[U[_], V, S](variable: Variable[U, V, S]) {
+
+    def sample(): U[V] = {
+      variable.vt.rnd
+    }
+  }
+
 }

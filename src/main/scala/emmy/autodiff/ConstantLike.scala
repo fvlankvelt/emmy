@@ -3,7 +3,7 @@ package emmy.autodiff
 import shapeless.Id
 
 
-trait ConstantLike[U[_], V, S] extends Node[U, V, S] {
+trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
 
   def value: U[V]
 

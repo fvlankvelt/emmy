@@ -3,7 +3,7 @@ package emmy.autodiff
 import emmy.distribution.Stochast
 
 
-trait Variable[U[_], V, S] extends Node[U, V, S] with Stochast[V] {
+trait Variable[U[_], V, S] extends Expression[U, V, S] with Stochast[V] {
 
   override def apply(evaluationContext: EvaluationContext): U[V] =
     throw new UnsupportedOperationException("Evaluation context should provide value for variable")

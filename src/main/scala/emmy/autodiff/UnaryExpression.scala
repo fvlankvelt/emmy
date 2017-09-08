@@ -1,13 +1,15 @@
 package emmy.autodiff
 
 
-case class UnaryNode[U[_], V, S](up: Node[U, V, S], rf: UnaryValueFunc[V])
-                                (implicit
+case class UnaryExpression[U[_], V, S](up: Expression[U, V, S], rf: UnaryValueFunc[V])
+                                      (implicit
                                  val vt: ValueOps[U, V, S],
                                  val ops: ContainerOps.Aux[U, S])
-  extends Node[U, V, S] {
+  extends Expression[U, V, S] {
 
   override val shape = up.shape
+
+  override val parents = Seq(up)
 
   override def apply(ec: EvaluationContext) = {
     ops.map(ec(up))(rf.apply)

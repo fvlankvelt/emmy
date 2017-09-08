@@ -21,12 +21,12 @@ package object autodiff {
 
   trait UnaryNodeFunc {
 
-    def apply[U[_], V, S](node: Node[U, V, S])
+    def apply[U[_], V, S](node: Expression[U, V, S])
                          (implicit
                           vt: ValueOps[U, V, S],
                           ops: ContainerOps.Aux[U, S],
-                          impl: Impl[V]): Node[U, V, S] =
-      UnaryNode(node, impl)
+                          impl: Impl[V]): Expression[U, V, S] =
+      UnaryExpression(node, impl)
 
     def wrapFunc[V](fn: UnaryValueFunc[V]): Impl[V] = new Impl[V] {
 
@@ -41,13 +41,13 @@ package object autodiff {
 
   trait CollectNodeFunc {
 
-    def apply[U[_], V, S](node: Node[U, V, S])
+    def apply[U[_], V, S](node: Expression[U, V, S])
                          (implicit
                           vt: ValueOps[U, V, S],
                           idT: ValueOps[Id, V, Any],
                           ops: ContainerOps[U],
-                          impl: Impl[V]): Node[Id, V, Any] =
-      AccumulatingNode(node, impl)
+                          impl: Impl[V]): Expression[Id, V, Any] =
+      AccumulatingExpression(node, impl)
 
     def wrapFunc[V](fn: CollectValueFunc[V]): Impl[V] = new Impl[V] {
 
@@ -64,12 +64,12 @@ package object autodiff {
 
   trait EvaluationContext {
 
-    def apply[U[_], V, S](n: Node[U, V, S]): U[V]
+    def apply[U[_], V, S](n: Expression[U, V, S]): U[V]
   }
 
   trait GradientContext extends EvaluationContext {
 
-    def apply[W[_], U[_], V, T, S](n: Node[U, V, S], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[V]]
+    def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[V]]
   }
 
   object log extends UnaryNodeFunc {
@@ -89,44 +89,58 @@ package object autodiff {
 
   implicit def nodeNumeric[U[_], V, S](implicit
                                        vOps: ValueOps[U, V, S],
-                                       cOps: ContainerOps.Aux[U, S]): Numeric[Node[U, V, S]] = new Numeric[Node[U, V, S]] {
+                                       cOps: ContainerOps.Aux[U, S]): Numeric[Expression[U, V, S]] = new Numeric[Expression[U, V, S]] {
 
-    override def plus(x: Node[U, V, S], y: Node[U, V, S]) = x + y
+    override def plus(x: Expression[U, V, S], y: Expression[U, V, S]) = x + y
 
-    override def minus(x: Node[U, V, S], y: Node[U, V, S]) = x - y
+    override def minus(x: Expression[U, V, S], y: Expression[U, V, S]) = x - y
 
-    override def times(x: Node[U, V, S], y: Node[U, V, S]) = x * y
+    override def times(x: Expression[U, V, S], y: Expression[U, V, S]) = x * y
 
-    override def negate(x: Node[U, V, S]) = -x
+    override def negate(x: Expression[U, V, S]) = -x
 
     override def fromInt(x: Int) = Constant(cOps.lift(vOps.valueVT.fromInt(x)))
 
-    override def toInt(x: Node[U, V, S]) = ???
+    override def toInt(x: Expression[U, V, S]) = ???
 
-    override def toLong(x: Node[U, V, S]) = ???
+    override def toLong(x: Expression[U, V, S]) = ???
 
-    override def toFloat(x: Node[U, V, S]) = ???
+    override def toFloat(x: Expression[U, V, S]) = ???
 
-    override def toDouble(x: Node[U, V, S]) = ???
+    override def toDouble(x: Expression[U, V, S]) = ???
 
-    override def compare(x: Node[U, V, S], y: Node[U, V, S]) = ???
+    override def compare(x: Expression[U, V, S], y: Expression[U, V, S]) = ???
+  }
+
+  implicit def toNode[U[_], V, S](value: U[V])
+                                 (implicit
+                                  vo: ValueOps[U, V, S],
+                                  ops: ContainerOps.Aux[U, S]): Expression[U, V, S] = {
+    Constant[U, V, S](value)
+  }
+
+  implicit def toIdNode[V](value: V)
+                          (implicit
+                           vo: ValueOps[Id, V, Any],
+                           ops: ContainerOps.Aux[Id, Any]): Expression[Id, V, Any] = {
+    Constant[Id, V, Any](value)
   }
 
   implicit class RichScalar[W, U[_], V, S](value: W) {
 
-    def -(node: Node[U, V, S])(implicit sOps: ScalarOps[V, W]): Node[U, V, S] = {
+    def -(node: Expression[U, V, S])(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
       -node + value
     }
 
-    def +(node: Node[U, V, S])(implicit sOps: ScalarOps[V, W]): Node[U, V, S] = {
+    def +(node: Expression[U, V, S])(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
       node + value
     }
 
-    def *(node: Node[U, V, S])(implicit sOps: ScalarOps[V, W]): Node[U, V, S] = {
+    def *(node: Expression[U, V, S])(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
       node * value
     }
 
-    def /(node: Node[U, V, S])(implicit sOps: ScalarOps[V, W]): Node[U, V, S] = {
+    def /(node: Expression[U, V, S])(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
       value * node.reciprocal()
     }
   }

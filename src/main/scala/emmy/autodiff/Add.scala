@@ -1,14 +1,16 @@
 package emmy.autodiff
 
-case class Add[U[_], V, S](lhs: Node[U, V, S], rhs: Node[U, V, S])
+case class Add[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, S])
                           (implicit
                            val vt: ValueOps[U, V, S],
                            val ops: ContainerOps.Aux[U, S])
-  extends Node[U, V, S] {
+  extends Expression[U, V, S] {
 
   assert(lhs.shape == rhs.shape)
 
   override val shape = lhs.shape
+
+  override val parents = Seq(lhs, rhs)
 
   override def apply(ec: EvaluationContext) =
       vt.plus(ec(lhs), ec(rhs))

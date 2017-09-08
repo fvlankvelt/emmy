@@ -1,6 +1,6 @@
 package emmy.distribution
 
-import emmy.autodiff.{ConstantLike, Node, Variable}
+import emmy.autodiff.{ConstantLike, Expression, Variable}
 
 import scalaz.Scalaz.Id
 
@@ -17,7 +17,7 @@ trait ValueDistribution[U[_], V, S] {
 }
 
 trait Stochast[V] {
-  def logp(): Node[Id, V, Any]
+  def logp(): Expression[Id, V, Any]
 }
 
 trait Observation[U[_], V, S] extends ConstantLike[U, V, S] with Stochast[V]
