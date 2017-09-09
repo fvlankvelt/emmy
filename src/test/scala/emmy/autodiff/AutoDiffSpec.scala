@@ -129,26 +129,53 @@ class AutoDiffSpec extends FlatSpec {
     print(newModel)
   }
 
-  case class SimpleModel(known: Set[Node], samplers: Map[Node, Any]) extends Model {
+  case class SimpleModel(nodes: Set[Node], samplers: Map[Node, Any]) extends Model {
 
     override def update[U[_], V, S](observation: Observation[U, V, S]) = {
 
-      def collectVars(visited: Set[Node], vars: Map[Node, Any], node: Node): (Set[Node], Map[Node, Any]) = {
+      def collectVars
+      (
+        visited: Set[Node],
+        vars: Set[SamplerBuilder[W forSome {type W[_]}, _, _]],
+        node: Node
+      ): (Set[Node], Set[SamplerBuilder[W forSome {type W[_]}, _, _]]) = {
         node.parents.foldLeft((visited, vars)) {
           case ((curvis, curvars), p) =>
             p match {
               case _ if curvis.contains(p) =>
                 (curvis, curvars)
-              case v : Variable[W forSome { type W[_]}, _, _] =>
-                (curvis + p, curvars + (p -> new Sampler(v)))
+              case v: Variable[W forSome {type W[_]}, _, _] =>
+                (curvis + p, curvars + SamplerBuilder(v))
               case _ =>
-                collectVars(curvis + p, curvars + (p -> p), p)
+                collectVars(curvis + p, curvars, p)
             }
         }
       }
 
-      val (newKnown, newVariables) = collectVars(known, samplers, observation)
-      SimpleModel(newKnown, newVariables)
+      val (updatedNodes, initializers) = collectVars(nodes, Set.empty, observation)
+      for {_ <- 0 until 100} {
+        val modelSample = sample()
+        val newVariables = initializers.map {
+          _.variable: Node
+        }
+        val ec = new EvaluationContext {
+
+          private val cache = mutable.HashMap[AnyRef, Any]()
+
+          override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] =
+            n match {
+              case v: Variable[U, V, S] if !newVariables.contains(v) =>
+                modelSample.getSampleValue(v)
+              case _ => cache.getOrElseUpdate(n, n.apply(this)).asInstanceOf[U[V]]
+            }
+
+        }
+        for {initializer <- initializers} {
+          initializer.eval(ec)
+        }
+      }
+
+      SimpleModel(updatedNodes, samplers ++ initializers.map { i => i.variable -> i.build() })
     }
 
     override def sample() = new ModelSample {
@@ -158,10 +185,32 @@ class AutoDiffSpec extends FlatSpec {
 
   }
 
-  class Sampler[U[_], V, S](variable: Variable[U, V, S]) {
+  case class SamplerBuilder[U[_], V, S](variable: Variable[U, V, S]) {
+    private val samples: mutable.Buffer[U[V]] = mutable.Buffer.empty
+
+    def eval(ec: EvaluationContext): Unit = {
+      samples += ec(variable)
+    }
+
+    def build(): Sampler[U, V, S] = {
+      implicit val numUV = variable.vt
+      val size = samples.length
+      val mu : U[V] = numUV.div(samples.sum(numUV), numUV.fromInt(size))
+      val sigma2 = samples.map { x =>
+        val delta = numUV.minus(x, mu)
+        numUV.times(delta, delta)
+      }.sum(numUV)
+      val ratio = numUV.div(sigma2, numUV.fromInt(size - 1))
+      val sigma = numUV.sqrt(ratio)
+      new Sampler(variable, mu, sigma)
+    }
+  }
+
+  class Sampler[U[_], V, S](variable: Variable[U, V, S], mu: U[V], sigma: U[V]) {
 
     def sample(): U[V] = {
-      variable.vt.rnd
+      val vt = variable.vt
+      vt.plus(mu, vt.times(vt.rnd, sigma))
     }
   }
 

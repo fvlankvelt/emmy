@@ -1,6 +1,7 @@
 package emmy.distribution
 
-import emmy.autodiff.{ContainerOps, Expression, Node, ScalarOps, ValueOps, Variable, log, sum}
+import emmy.autodiff
+import emmy.autodiff.{ContainerOps, EvaluationContext, Expression, Node, ScalarOps, ValueOps, Variable, log, sum}
 
 import scalaz.Scalaz.Id
 
@@ -54,6 +55,10 @@ case class NormalSample[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U
   override val shape = mu.shape
 
   override implicit val vt = vo.bind(shape)
+
+  override def apply(ec: EvaluationContext): U[V] = {
+    vt.plus(ec(mu), vt.times(vt.rnd, ec(sigma)))
+  }
 }
 
 case class NormalObservation[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U, V, S], value: U[V])

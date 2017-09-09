@@ -1,6 +1,6 @@
 package emmy.distribution
 
-import emmy.autodiff.{ConstantLike, ContainerOps, Expression, ScalarOps, ValueOps, Variable, lgamma, log, sum}
+import emmy.autodiff.{ContainerOps, EvaluationContext, Expression, ScalarOps, ValueOps, Variable, lgamma, log, sum}
 
 import scalaz.Scalaz.Id
 
@@ -34,6 +34,8 @@ trait GammaStochast[U[_], V, S] extends Stochast[V] {
 
   implicit def so: ScalarOps[V, Double]
 
+  override def parents = Seq(alpha, beta)
+
   override def logp(): Expression[Id, V, Any] = {
     implicit val numV = vt.valueVT
     sum(alpha * log(beta) + (alpha - 1.0) * log(this) - beta * this - lgamma(alpha))
@@ -52,7 +54,15 @@ case class GammaSample[U[_], V, S](alpha: Expression[U, V, S], beta: Expression[
 
   override implicit val vt = vo.bind(shape)
 
-  override val parents = Seq(alpha, beta)
+  override def apply(ec: EvaluationContext): U[V] = {
+    val alphaV = ec(alpha)
+    val betaV = ec(beta)
+    ops.zipMap(alphaV, betaV) {
+      (a, b) =>
+        val g = breeze.stats.distributions.Gamma(vt.valueVT.toDouble(a), 1.0 / vt.valueVT.toDouble(b))
+        so.times(vt.valueVT.one, g.draw())
+    }
+  }
 }
 
 case class GammaObservation[U[_], V, S](alpha: Expression[U, V, S], beta: Expression[U, V, S], value: U[V])
@@ -66,6 +76,4 @@ case class GammaObservation[U[_], V, S](alpha: Expression[U, V, S], beta: Expres
   assert(alpha.shape == ops.shapeOf(value))
 
   override implicit val vt = vo.bind(ops.shapeOf(value))
-
-  override val parents = Seq(alpha, beta)
 }

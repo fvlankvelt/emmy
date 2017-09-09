@@ -5,6 +5,8 @@ import scala.util.Random
 
 trait Floating[V] extends Fractional[V] {
 
+  def sqrt: UnaryValueFunc[V]
+
   def log: UnaryValueFunc[V]
 
   def lgamma: UnaryValueFunc[V]
@@ -19,6 +21,14 @@ trait Floating[V] extends Fractional[V] {
 object Floating {
 
   implicit val doubleFloating: Floating[Double] = new Floating[Double] {
+
+    override def sqrt = new UnaryValueFunc[Double] {
+
+      def apply(x: Double) = scala.math.sqrt(x)
+
+      def grad(x: Double) = 0.5 / scala.math.sqrt(x)
+
+    }
 
     override def log = new UnaryValueFunc[Double] {
 

@@ -25,6 +25,16 @@ object ValueOps {
 
 trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
 
+  override def sqrt = new UnaryValueFunc[U[V]] {
+
+    private val upstream = valueVT.sqrt
+
+    override def grad(v: U[V]) = ops.map(v)(upstream.grad)
+
+    override def apply(v: U[V]) = ops.map(v)(upstream.apply)
+
+  }
+
   override def log = new UnaryValueFunc[U[V]] {
 
     private val upstream = valueVT.log
