@@ -5,29 +5,30 @@ import emmy.distribution.{Normal, Observation}
 import emmy.inference.{Model, ModelSample}
 import org.scalatest.FlatSpec
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scalaz.Scalaz._
 
 class AutoDiffSpec extends FlatSpec {
 
-  val gc = new GradientContext {
+  val gc = new GradientContext[Double] {
 
     private val cache = mutable.HashMap[AnyRef, Any]()
 
-    override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] = {
+    override def apply[U[_], S](n: Expression[U, Double, S]): U[Double] = {
       n match {
-        case v: TestVariable[U, V, S] => v.value
-        case v: Variable[U, V, S] => cache.getOrElseUpdate(v, v.vt.rnd).asInstanceOf[U[V]]
+        case v: TestVariable[U, Double, S] => v.value
+        case v: Variable[U, Double, S] => cache.getOrElseUpdate(v, v.vt.rnd).asInstanceOf[U[Double]]
         case _ => n.apply(this)
       }
     }
 
-    override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: Aux[W, T]): W[U[V]] = {
+    override def apply[W[_], U[_], T, S](n: Expression[U, Double, S], v: Variable[W, Double, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
       n.grad(this, v)
     }
   }
 
-  val ec: EvaluationContext = gc
+  val ec: EvaluationContext[Double] = gc
 
   case class TestVariable[U[_], V, S](value: U[V])
                                      (implicit
@@ -37,7 +38,7 @@ class AutoDiffSpec extends FlatSpec {
 
     override def shape = ops.shapeOf(value)
 
-    override def apply(ec: EvaluationContext) = value
+    override def apply(ec: EvaluationContext[V]) = value
 
     override def logp() = ???
 
@@ -119,83 +120,199 @@ class AutoDiffSpec extends FlatSpec {
     val sigma = Normal(1.0, 0.5).sample
     val dist = Normal(mu, sigma)
 
-    val initialModel = SimpleModel(Set.empty, Map.empty)
+    val initialModel = SimpleModel[Double](Seq(mu, sigma))
 
-    val newModel = data.foldLeft(initialModel) {
-      case (m, d) =>
-        val observation = dist.observe(d)
-        m.update(observation)
-    }
+    val observations = data.map { d => dist.observe(d) }
+    val newModel = initialModel.update(observations)
     print(newModel)
   }
 
-  case class SimpleModel(nodes: Set[Node], samplers: Map[Node, Any]) extends Model {
+  case class SimpleModel[V] private[SimpleModel](
+                                                  nodes: Set[Node],
+                                                  globalVars: Map[Node, Any]
+                                                )(implicit fl: Floating[V])
+    extends Model[V] {
 
-    override def update[U[_], V, S](observation: Observation[U, V, S]) = {
+    import SimpleModel._
 
-      def collectVars
-      (
-        visited: Set[Node],
-        vars: Set[SamplerBuilder[W forSome {type W[_]}, _, _]],
-        node: Node
-      ): (Set[Node], Set[SamplerBuilder[W forSome {type W[_]}, _, _]]) = {
-        node.parents.foldLeft((visited, vars)) {
-          case ((curvis, curvars), p) =>
-            p match {
-              case _ if curvis.contains(p) =>
-                (curvis, curvars)
-              case v: Variable[W forSome {type W[_]}, _, _] =>
-                (curvis + p, curvars + SamplerBuilder(v))
-              case _ =>
-                collectVars(curvis + p, curvars, p)
-            }
+    override def update[U[_], S](observations: Seq[Observation[U, V, S]]) = {
+
+      // find new nodes, new variables & their (log) probability
+      val (_, samplerBuilders, logp) = collectVars(
+        nodes,
+        Set.empty[SamplerBuilder[W forSome {type W[_]}, V, _]],
+        fl.zero,
+        observations
+      )
+
+      // initialize new variables by sampling their prior
+      // (based on current distributions for already known variables)
+      val localVars = if (samplerBuilders.nonEmpty) {
+        initialize(samplerBuilders, sample)
+      } else {
+        Map.empty
+      }
+
+      // logP is the sum of
+      // - the likelihood of observation log(p(x|\theta)), and
+      // - the prior log(p(\theta)) of the local variables
+      //
+      // Add the log prior of global variables to get the full
+      // objective function to optimize
+      val totalLogP = globalVars.values.foldLeft(logp) { case (curLogp, variable) =>
+        curLogp + variable.asInstanceOf[Sampler[({type U[_]})#U, V, _]].variable.logp()
+      }
+
+      // update variables by taking observations into account
+      val samplers = (globalVars ++ localVars).map {
+        _._2.asInstanceOf[Sampler[({type U[_]})#U, V, _]]
+      }
+
+      @tailrec
+      def iterate(iter: Int, samplers: Iterable[Sampler[({type U[_]})#U, V, _]]): Iterable[Sampler[({type U[_]})#U, V, _]] = {
+        val variables = samplers.map { s => (s.variable: Node) -> (s: Any) }.toMap
+        val rho = fl.div(fl.one, fl.fromInt(iter + 1))
+        val modelSample = new ModelSample[V] {
+          override def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V] =
+            variables(n).asInstanceOf[Sampler[U, V, S]].sample()
+        }
+        val gc = new ModelGradientContext[V](modelSample)
+        val updatedWithDelta = samplers.map { anyS =>
+          val sampler = anyS.asInstanceOf[Sampler[({type U[_]})#U, V, _]]
+          val variable = sampler.variable
+          val value = modelSample.getSampleValue(variable)
+
+          sampler.update(value, totalLogP, gc, rho)
+        }.toMap[Sampler[({type U[_]})#U, V, _], V]
+
+        val totalDelta = updatedWithDelta.values.sum
+        if (fl.lt(totalDelta, fl.div(fl.one, fl.fromInt(10)))) {
+          updatedWithDelta.keys
+        } else {
+          iterate(iter + 1, updatedWithDelta.keys)
         }
       }
 
-      val (updatedNodes, initializers) = collectVars(nodes, Set.empty, observation)
+      val newSamplers = iterate(0, samplers)
+
+      SimpleModel(nodes,
+        newSamplers.filter { sampler =>
+          globalVars.contains(sampler.variable)
+        }.map { sampler =>
+          (sampler.variable: Node) -> sampler
+        }.toMap
+      )
+    }
+
+    override def sample() = new ModelSample[V] {
+      override def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V] =
+        globalVars(n).asInstanceOf[Sampler[U, V, S]].sample()
+    }
+
+  }
+
+  object SimpleModel {
+
+    private[SimpleModel] def initialize[V]
+    (
+      builders: Set[SamplerBuilder[W forSome {type W[_]}, V, _]],
+      prior: () => ModelSample[V]
+    ): Map[Node, Any] = {
       for {_ <- 0 until 100} {
-        val modelSample = sample()
-        val newVariables = initializers.map {
+        val modelSample = prior()
+        val newVariables = builders.map {
           _.variable: Node
         }
-        val ec = new EvaluationContext {
-
-          private val cache = mutable.HashMap[AnyRef, Any]()
-
-          override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] =
-            n match {
-              case v: Variable[U, V, S] if !newVariables.contains(v) =>
-                modelSample.getSampleValue(v)
-              case _ => cache.getOrElseUpdate(n, n.apply(this)).asInstanceOf[U[V]]
-            }
-
-        }
-        for {initializer <- initializers} {
+        val ec = new ModelEvaluationContext[V](modelSample, newVariables)
+        for {initializer <- builders} {
           initializer.eval(ec)
         }
       }
-
-      SimpleModel(updatedNodes, samplers ++ initializers.map { i => i.variable -> i.build() })
+      builders.toSeq.map { b =>
+        b.variable -> b.build()
+      }.toMap
     }
 
-    override def sample() = new ModelSample {
-      override def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V] =
-        samplers(n).asInstanceOf[Sampler[U, V, S]].sample()
+    private[SimpleModel] def collectVars[V]
+    (
+      visited: Set[Node],
+      vars: Set[SamplerBuilder[W forSome {type W[_]}, V, _]],
+      lp: Expression[Id, V, Any],
+      nodes: Seq[Node]
+    ): (Set[Node], Set[SamplerBuilder[W forSome {type W[_]}, V, _]], Expression[Id, V, Any]) = {
+      nodes.foldLeft((visited, vars, lp)) {
+        case ((curvis, curvars, curlogp), p) =>
+          p match {
+            case _ if curvis.contains(p) =>
+              (curvis, curvars, curlogp)
+            case v: Variable[W forSome {type W[_]}, V, _] =>
+              collectVars(curvis + p, curvars + SamplerBuilder(v), curlogp + v.logp(), p.parents)
+            case _ =>
+              collectVars(curvis + p, curvars, curlogp, p.parents)
+          }
+      }
     }
 
+    def apply[V](global: Seq[Node])(implicit fl: Floating[V]): SimpleModel[V] = {
+
+      // find new nodes, new variables & their (log) probability
+      val (_, builders, logp) = collectVars(
+        Set.empty,
+        Set.empty[SamplerBuilder[W forSome {type W[_]}, V, _]],
+        fl.zero,
+        global
+      )
+
+      val globalSamplers = initialize(builders, () => {
+        new ModelSample[V] {
+          override def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V] =
+            throw new UnsupportedOperationException("Global priors cannot be initialized with dependencies on variables")
+        }
+      })
+
+      SimpleModel[V](global.toSet, globalSamplers)
+    }
+  }
+
+  class ModelEvaluationContext[V](modelSample: ModelSample[V], newVariables: Set[Node]) extends EvaluationContext[V] {
+
+    private val cache = mutable.HashMap[AnyRef, Any]()
+
+    override def apply[U[_], S](n: Expression[U, V, S]): U[V] =
+      n match {
+        case v: Variable[U, V, S] if !newVariables.contains(v) =>
+          modelSample.getSampleValue(v)
+        case _ => cache.getOrElseUpdate(n, n.apply(this)).asInstanceOf[U[V]]
+      }
+
+  }
+
+  class ModelGradientContext[V](modelSample: ModelSample[V]) extends GradientContext[V] {
+
+    private val cache = mutable.HashMap[AnyRef, Any]()
+
+    override def apply[U[_], S](n: Expression[U, V, S]): U[V] =
+      n match {
+        case v: Variable[U, V, S] => modelSample.getSampleValue(v)
+        case _ => cache.getOrElseUpdate(n, n.apply(this)).asInstanceOf[U[V]]
+      }
+
+    override def apply[W[_], U[_], T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: Aux[W, T]): W[U[V]] = {
+      n.grad(this, v)
+    }
   }
 
   case class SamplerBuilder[U[_], V, S](variable: Variable[U, V, S]) {
     private val samples: mutable.Buffer[U[V]] = mutable.Buffer.empty
 
-    def eval(ec: EvaluationContext): Unit = {
+    def eval(ec: EvaluationContext[V]): Unit = {
       samples += ec(variable)
     }
 
     def build(): Sampler[U, V, S] = {
       implicit val numUV = variable.vt
       val size = samples.length
-      val mu : U[V] = numUV.div(samples.sum(numUV), numUV.fromInt(size))
+      val mu: U[V] = numUV.div(samples.sum(numUV), numUV.fromInt(size))
       val sigma2 = samples.map { x =>
         val delta = numUV.minus(x, mu)
         numUV.times(delta, delta)
@@ -206,7 +323,88 @@ class AutoDiffSpec extends FlatSpec {
     }
   }
 
-  class Sampler[U[_], V, S](variable: Variable[U, V, S], mu: U[V], sigma: U[V]) {
+  class Sampler[U[_], V, S](val variable: Variable[U, V, S], val mu: U[V], sigma: U[V]) {
+
+    def gradValue(value: U[V]): U[V] = {
+      val vt = variable.vt
+      val delta = vt.minus(mu, value)
+      vt.div(delta, vt.times(sigma, sigma))
+    }
+
+    /**
+      * Update (\mu, \sigma) by taking a natural gradient step of size \rho.
+      * The value is decomposed as \value = \mu + \epsilon * \sigma.
+      * Updates are
+      *
+      *      \mu' = (1 - \rho) * \mu    +
+      *               \rho * \sigma**2 * (\gradP - \gradQ)
+      *
+      *   \sigma' = (1 - \rho) * \sigma +
+      *               \rho * (\sigma**2 / 2) * \epsilon * (\gradP - \gradQ)
+      *
+      * The factors \sigma**2 and \sigma**2/2, respectively, are due to
+      * the conversion to natural gradient.  The \epsilon factor is
+      * the jacobian d\theta/d\sigma.  (similar factor for \mu is 1)
+      */
+    def update(value: U[V], logP: Expression[Id, V, Any], gc: GradientContext[V], rho: V): (Sampler[U, V, S], V) = {
+      val vt = variable.vt
+      val fl = vt.valueVT
+      implicit val ops = variable.ops
+      val gradP = gc(logP, variable)
+      val gradQ = gradValue(value)
+      val gradDelta = variable.vt.minus(gradP, gradQ)
+
+      val newMu = vt.plus(
+        vt.times(
+          variable.ops.fill(variable.shape, fl.minus(fl.one, rho)),
+          mu
+        ),
+        vt.times(
+          vt.times(sigma, sigma),
+          vt.times(variable.ops.fill(variable.shape, rho), gradDelta)
+        )
+      )
+
+      val lambda = vt.log(sigma)
+      val newLambda =
+        vt.plus(
+          vt.times(
+            lambda, variable.ops.fill(variable.shape, fl.minus(fl.one, rho))
+          ),
+          vt.times(
+            vt.div(vt.minus(value, mu), vt.fromInt(2)),
+            vt.times(variable.ops.fill(variable.shape, rho), gradDelta)
+          )
+        )
+      val newSigma = vt.exp(newLambda)
+      val newSampler = new Sampler[U, V, S](variable, newMu, newSigma)
+      (newSampler, delta(newSampler))
+    }
+
+    def delta(other: Sampler[U, V, S]): V = {
+      implicit val vt = variable.vt
+      implicit val fl = vt.valueVT
+      val ops = variable.ops
+      ops.foldLeft(vt.abs(vt.div(vt.minus(mu, other.mu), sigma)))(fl.zero)(fl.sum)
+    }
+
+    def gradMu(value: U[V]): U[V] = {
+      val vt = variable.vt
+      val delta = vt.minus(value, mu)
+      vt.div(delta, vt.times(sigma, sigma))
+    }
+
+    def gradSigma(value: U[V]): U[V] = {
+      val vt = variable.vt
+      val delta = vt.minus(value, mu)
+      vt.minus(
+        vt.div(
+          vt.times(delta, delta),
+          vt.times(vt.times(sigma, sigma), sigma)
+        ),
+        vt.div(vt.one, sigma)
+      )
+    }
 
     def sample(): U[V] = {
       val vt = variable.vt

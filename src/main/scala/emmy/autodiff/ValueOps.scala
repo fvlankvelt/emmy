@@ -44,6 +44,15 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
     override def apply(v: U[V]) = ops.map(v)(upstream.apply)
   }
 
+  override def exp = new UnaryValueFunc[U[V]] {
+
+    private val upstream = valueVT.exp
+
+    override def grad(v: U[V]) = ops.map(v)(upstream.grad)
+
+    override def apply(v: U[V]) = ops.map(v)(upstream.apply)
+  }
+
   override def lgamma = new UnaryValueFunc[U[V]] {
 
     private val upstream = valueVT.lgamma
@@ -75,6 +84,8 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
   override def times(x: U[V], y: U[V]) = ops.zipMap(x, y)(valueVT.times)
 
   override def negate(x: U[V]) = ops.map(x)(valueVT.negate)
+
+  override def abs(x: U[V]): U[V] = ops.map(x)(valueVT.abs)
 
   override def rnd: U[V] = invalidOp("rnd")
 

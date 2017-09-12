@@ -54,7 +54,7 @@ case class GammaSample[U[_], V, S](alpha: Expression[U, V, S], beta: Expression[
 
   override implicit val vt = vo.bind(shape)
 
-  override def apply(ec: EvaluationContext): U[V] = {
+  override def apply(ec: EvaluationContext[V]): U[V] = {
     val alphaV = ec(alpha)
     val betaV = ec(beta)
     ops.zipMap(alphaV, betaV) {

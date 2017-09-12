@@ -62,14 +62,14 @@ package object autodiff {
 
   }
 
-  trait EvaluationContext {
+  trait EvaluationContext[V] {
 
-    def apply[U[_], V, S](n: Expression[U, V, S]): U[V]
+    def apply[U[_], S](n: Expression[U, V, S]): U[V]
   }
 
-  trait GradientContext extends EvaluationContext {
+  trait GradientContext[V] extends EvaluationContext[V] {
 
-    def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[V]]
+    def apply[W[_], U[_], T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[V]]
   }
 
   object log extends UnaryNodeFunc {

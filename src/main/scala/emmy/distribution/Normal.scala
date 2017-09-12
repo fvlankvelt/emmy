@@ -56,7 +56,7 @@ case class NormalSample[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U
 
   override implicit val vt = vo.bind(shape)
 
-  override def apply(ec: EvaluationContext): U[V] = {
+  override def apply(ec: EvaluationContext[V]): U[V] = {
     vt.plus(ec(mu), vt.times(vt.rnd, ec(sigma)))
   }
 }
