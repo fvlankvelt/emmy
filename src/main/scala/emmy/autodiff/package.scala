@@ -40,7 +40,6 @@ package object autodiff {
 
     def apply[U[_], V, S](node: Expression[U, V, S])
                          (implicit
-                          vt: ValueOps[U, V, S],
                           idT: ValueOps[Id, V, Any],
                           ops: ContainerOps[U],
                           impl: Impl[V]): Expression[Id, V, Any] =

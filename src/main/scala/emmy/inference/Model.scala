@@ -1,6 +1,6 @@
 package emmy.inference
 
-import emmy.autodiff.{ContainerOps, ValueOps, Variable}
+import emmy.autodiff.Variable
 import emmy.distribution.Observation
 
 trait Model[V] {
