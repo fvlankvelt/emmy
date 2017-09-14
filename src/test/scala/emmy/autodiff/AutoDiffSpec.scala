@@ -1,5 +1,6 @@
 package emmy.autodiff
 
+import breeze.numerics.abs
 import emmy.autodiff.ContainerOps.Aux
 import emmy.distribution.{Normal, Observation}
 import emmy.inference.{Model, ModelSample}
@@ -7,6 +8,7 @@ import org.scalatest.FlatSpec
 
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.util.Random
 import scalaz.Scalaz._
 
 class AutoDiffSpec extends FlatSpec {
@@ -114,17 +116,23 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "update variational parameters for each (minibatch of) data point(s)" in {
-    val data = List(0.2, 1.0, 0.5)
-
     val mu = Normal(0.0, 1.0).sample
-    val sigma = Normal(1.0, 0.5).sample
-    val dist = Normal(mu, sigma)
+    val sigma = Normal(0.0, 0.5).sample
 
     val initialModel = SimpleModel[Double](Seq(mu, sigma))
+    val dist = Normal(mu, exp(sigma))
 
-    val observations = data.map { d => dist.observe(d) }
-    val newModel = initialModel.update(observations)
-    print(newModel)
+    var model = initialModel
+    while(true) {
+      val data = for {_ <- 0 until 100} yield {
+        0.3 + Random.nextGaussian() * scala.math.exp(0.2)
+      }
+
+      val observations = data.map { d => dist.observe(d) }
+      val newModel = model.update(observations)
+      print(newModel)
+      model = newModel
+    }
   }
 
   case class SimpleModel[V] private[SimpleModel](
@@ -171,7 +179,7 @@ class AutoDiffSpec extends FlatSpec {
       @tailrec
       def iterate(iter: Int, samplers: Iterable[Sampler[({type U[_]})#U, V, _]]): Iterable[Sampler[({type U[_]})#U, V, _]] = {
         val variables = samplers.map { s => (s.variable: Node) -> (s: Any) }.toMap
-        val rho = fl.div(fl.one, fl.fromInt(iter + 1))
+        val rho = fl.div(fl.one, fl.fromInt(iter + 1000))
         val modelSample = new ModelSample[V] {
           override def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V] =
             variables(n).asInstanceOf[Sampler[U, V, S]].sample()
@@ -179,14 +187,11 @@ class AutoDiffSpec extends FlatSpec {
         val gc = new ModelGradientContext[V](modelSample)
         val updatedWithDelta = samplers.map { anyS =>
           val sampler = anyS.asInstanceOf[Sampler[({type U[_]})#U, V, _]]
-          val variable = sampler.variable
-          val value = modelSample.getSampleValue(variable)
-
-          sampler.update(value, totalLogP, gc, rho)
+          sampler.update(totalLogP, gc, rho)
         }.toMap[Sampler[({type U[_]})#U, V, _], V]
 
         val totalDelta = updatedWithDelta.values.sum
-        if (fl.lt(totalDelta, fl.div(fl.one, fl.fromInt(10)))) {
+        if (fl.lt(totalDelta, fl.div(fl.one, fl.fromInt(1000)))) {
           updatedWithDelta.keys
         } else {
           iterate(iter + 1, updatedWithDelta.keys)
@@ -245,6 +250,8 @@ class AutoDiffSpec extends FlatSpec {
           p match {
             case _ if curvis.contains(p) =>
               (curvis, curvars, curlogp)
+            case o: Observation[W forSome {type W[_]}, V, _] =>
+              collectVars(curvis + p, curvars, curlogp + o.logp(), p.parents)
             case v: Variable[W forSome {type W[_]}, V, _] =>
               collectVars(curvis + p, curvars + SamplerBuilder(v), curlogp + v.logp(), p.parents)
             case _ =>
@@ -281,8 +288,11 @@ class AutoDiffSpec extends FlatSpec {
     override def apply[U[_], S](n: Expression[U, V, S]): U[V] =
       n match {
         case v: Variable[U, V, S] if !newVariables.contains(v) =>
-          modelSample.getSampleValue(v)
-        case _ => cache.getOrElseUpdate(n, n.apply(this)).asInstanceOf[U[V]]
+          cache.getOrElseUpdate(n, modelSample.getSampleValue(v))
+            .asInstanceOf[U[V]]
+        case _ =>
+          cache.getOrElseUpdate(n, n.apply(this))
+            .asInstanceOf[U[V]]
       }
 
   }
@@ -293,8 +303,12 @@ class AutoDiffSpec extends FlatSpec {
 
     override def apply[U[_], S](n: Expression[U, V, S]): U[V] =
       n match {
-        case v: Variable[U, V, S] => modelSample.getSampleValue(v)
-        case _ => cache.getOrElseUpdate(n, n.apply(this)).asInstanceOf[U[V]]
+        case v: Variable[U, V, S] =>
+          cache.getOrElseUpdate(n, modelSample.getSampleValue(v))
+            .asInstanceOf[U[V]]
+        case _ =>
+          cache.getOrElseUpdate(n, n.apply(this))
+            .asInstanceOf[U[V]]
       }
 
     override def apply[W[_], U[_], T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: Aux[W, T]): W[U[V]] = {
@@ -325,6 +339,16 @@ class AutoDiffSpec extends FlatSpec {
 
   class Sampler[U[_], V, S](val variable: Variable[U, V, S], val mu: U[V], sigma: U[V]) {
 
+    /*
+    println(s"new sampler for ${variable}: ${mu}, ${sigma}")
+    if (mu.asInstanceOf[Double].isNaN ||
+      abs(mu.asInstanceOf[Double]) > 20.0 ||
+      abs(sigma.asInstanceOf[Double]) > 20.0 ||
+      sigma.asInstanceOf[Double].isNaN) {
+      assert(false)
+    }
+    */
+
     def gradValue(value: U[V]): U[V] = {
       val vt = variable.vt
       val delta = vt.minus(mu, value)
@@ -336,23 +360,24 @@ class AutoDiffSpec extends FlatSpec {
       * The value is decomposed as \value = \mu + \epsilon * \sigma.
       * Updates are
       *
-      *      \mu' = (1 - \rho) * \mu    +
-      *               \rho * \sigma**2 * (\gradP - \gradQ)
+      * \mu' = (1 - \rho) * \mu    +
+      * \rho * \sigma**2 * (\gradP - \gradQ)
       *
-      *   \sigma' = (1 - \rho) * \sigma +
-      *               \rho * (\sigma**2 / 2) * \epsilon * (\gradP - \gradQ)
+      * \sigma' = (1 - \rho) * \sigma +
+      * \rho * (\sigma**2 / 2) * \epsilon * (\gradP - \gradQ)
       *
       * The factors \sigma**2 and \sigma**2/2, respectively, are due to
       * the conversion to natural gradient.  The \epsilon factor is
       * the jacobian d\theta/d\sigma.  (similar factor for \mu is 1)
       */
-    def update(value: U[V], logP: Expression[Id, V, Any], gc: GradientContext[V], rho: V): (Sampler[U, V, S], V) = {
+    def update(logP: Expression[Id, V, Any], gc: GradientContext[V], rho: V): (Sampler[U, V, S], V) = {
       val vt = variable.vt
       val fl = vt.valueVT
+      val value = gc(variable)
       implicit val ops = variable.ops
       val gradP = gc(logP, variable)
       val gradQ = gradValue(value)
-      val gradDelta = variable.vt.minus(gradP, gradQ)
+      val gradDelta = variable.vt.minus(gradQ, gradP)
 
       val newMu = vt.plus(
         vt.times(
@@ -376,7 +401,7 @@ class AutoDiffSpec extends FlatSpec {
             vt.times(variable.ops.fill(variable.shape, rho), gradDelta)
           )
         )
-      val newSigma = vt.exp(newLambda)
+      val newSigma = vt.exp(vt.div(vt.plus(newLambda, lambda), vt.fromInt(2)))
       val newSampler = new Sampler[U, V, S](variable, newMu, newSigma)
       (newSampler, delta(newSampler))
     }
@@ -408,7 +433,9 @@ class AutoDiffSpec extends FlatSpec {
 
     def sample(): U[V] = {
       val vt = variable.vt
-      vt.plus(mu, vt.times(vt.rnd, sigma))
+      val value = vt.plus(mu, vt.times(vt.rnd, sigma))
+//      println(s"sampling ${variable}: ${mu}, ${sigma} => $value")
+      value
     }
   }
 

@@ -3,10 +3,10 @@ package emmy.autodiff
 import scalaz.Scalaz.Id
 
 case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U, V, S], rf: CollectValueFunc[V])
-                                                               (implicit
-                                                          st: ValueOps[U, V, S],
-                                                          val vo: ValueOps[Id, V, Any])
+                                                               (implicit vo: ValueOps[Id, V, Any])
   extends Expression[Id, V, Any] {
+
+  implicit val st: ValueOps[U, V, S] = up.vt
 
   override implicit val ops = ContainerOps.idOps
 

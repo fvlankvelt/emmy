@@ -2,10 +2,11 @@ package emmy.autodiff
 
 
 case class UnaryExpression[U[_], V, S](up: Expression[U, V, S], rf: UnaryValueFunc[V])
-                                      (implicit
-                                 val vt: ValueOps[U, V, S],
-                                 val ops: ContainerOps.Aux[U, S])
   extends Expression[U, V, S] {
+
+  override val vt = up.vt
+
+  override val ops = up.ops
 
   override val shape = up.shape
 

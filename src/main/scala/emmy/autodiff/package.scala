@@ -22,10 +22,7 @@ package object autodiff {
   trait UnaryNodeFunc {
 
     def apply[U[_], V, S](node: Expression[U, V, S])
-                         (implicit
-                          vt: ValueOps[U, V, S],
-                          ops: ContainerOps.Aux[U, S],
-                          impl: Impl[V]): Expression[U, V, S] =
+                         (implicit impl: Impl[V]): Expression[U, V, S] =
       UnaryExpression(node, impl)
 
     def wrapFunc[V](fn: UnaryValueFunc[V]): Impl[V] = new Impl[V] {
@@ -75,6 +72,11 @@ package object autodiff {
   object log extends UnaryNodeFunc {
 
     implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.log)
+  }
+
+  object exp extends UnaryNodeFunc {
+
+    implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.exp)
   }
 
   object lgamma extends UnaryNodeFunc {
