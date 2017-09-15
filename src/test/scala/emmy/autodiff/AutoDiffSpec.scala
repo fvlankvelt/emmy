@@ -30,20 +30,6 @@ class AutoDiffSpec extends FlatSpec {
 
   val ec: EvaluationContext[Double] = gc
 
-  case class TestVariable[U[_], V, S](value: U[V])
-                                     (implicit
-                                      val vo: ValueOps[U, V, S],
-                                      val ops: ContainerOps.Aux[U, S])
-    extends Variable[U, V, S] {
-
-    override def shape = ops.shapeOf(value)
-
-    override def apply(ec: EvaluationContext[V]) = value
-
-    override def logp() = ???
-
-    override implicit val vt = vo.bind(ops.shapeOf(value))
-  }
 
   "AD" should "calculate scalar derivative" in {
     val x = TestVariable[Id, Double, Any](2.0)
@@ -52,6 +38,15 @@ class AutoDiffSpec extends FlatSpec {
 
     val z: Double = y.grad(gc, x)
     assert(z == 4.0)
+  }
+
+  it should "deal with constants" in {
+    val x = TestVariable[Id, Double, Any](0.0)
+    val y = -(x - 1.0) * (x - 1.0) / 2.0
+    assert(y(ec) == -0.5)
+
+    val z: Double = y.grad(gc, x)
+    assert(z == 1.0)
   }
 
   it should "calculate vector derivative on List" in {
@@ -114,16 +109,17 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "update variational parameters for each (minibatch of) data point(s)" in {
-    val mu = Normal(0.0, 1.0).sample
-    val sigma = Normal(0.0, 0.5).sample
+    val mu = Normal(0.2, 1.0).sample
+    //    val sigma = Normal(0.0, 0.5).sample
 
-    val initialModel = AEVBModel[Double](Seq(mu, sigma))
-    val dist = Normal(mu, exp(sigma))
+    val initialModel = AEVBModel[Double](Seq(mu))
+    val dist = Normal(mu, 0.2) // exp(sigma))
 
     var model = initialModel
-    while(true) {
-      val data = for {_ <- 0 until 100} yield {
-        0.3 + Random.nextGaussian() * scala.math.exp(0.2)
+    while (true) {
+      val data = for {_ <- 0 until 1} yield {
+        0.3 + Random.nextGaussian() * 0.2
+        //        0.2
       }
 
       val observations = data.map { d => dist.observe(d) }

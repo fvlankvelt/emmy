@@ -40,7 +40,7 @@ class AEVBSampler[U[_], V, S](val variable: Variable[U, V, S], val mu: U[V], sig
     implicit val ops = variable.ops
     val gradP = gc(logP, variable)
     val gradQ = gradValue(value)
-    val gradDelta = variable.vt.minus(gradQ, gradP)
+    val gradDelta = variable.vt.minus(gradP, gradQ)
 
     val newMu = vt.plus(
       vt.times(
