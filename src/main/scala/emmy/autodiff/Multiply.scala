@@ -21,7 +21,7 @@ case class Multiply[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, 
     val lv = gc(lhs)
     val leftg = gc(lhs, v)
     val rv = gc(rhs)
-    val rightg = gc(lhs, v)
+    val rightg = gc(rhs, v)
     ops.zipMap(leftg, rightg) {
       (lg, rg) =>
         vt.plus(
@@ -29,6 +29,10 @@ case class Multiply[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, 
           vt.times(lv, rg)
         )
     }
+  }
+
+  override def toString: String = {
+    "(" + lhs + " * " + rhs + ")"
   }
 
 }

@@ -51,4 +51,8 @@ case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U
     }
     opsW.map(result)(_._2)
   }
+
+  override def toString: String = {
+    rf.name + "(" + up + ")"
+  }
 }

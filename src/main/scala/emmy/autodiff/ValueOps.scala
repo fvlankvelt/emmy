@@ -27,6 +27,8 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
 
   override def sqrt = new UnaryValueFunc[U[V]] {
 
+    val name = "sqrt"
+
     private val upstream = valueVT.sqrt
 
     override def grad(v: U[V]) = ops.map(v)(upstream.grad)
@@ -37,6 +39,8 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
 
   override def log = new UnaryValueFunc[U[V]] {
 
+    val name = "log"
+
     private val upstream = valueVT.log
 
     override def grad(v: U[V]) = ops.map(v)(upstream.grad)
@@ -45,6 +49,8 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
   }
 
   override def exp = new UnaryValueFunc[U[V]] {
+
+    val name = "exp"
 
     private val upstream = valueVT.exp
 
@@ -55,6 +61,8 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
 
   override def lgamma = new UnaryValueFunc[U[V]] {
 
+    val name = "lgamma"
+
     private val upstream = valueVT.lgamma
 
     override def grad(v: U[V]) = ops.map(v)(upstream.grad)
@@ -63,6 +71,8 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
   }
 
   override def sum = new CollectValueFunc[U[V]] {
+
+    val name = "sum"
 
     private val upstream = valueVT.sum
 

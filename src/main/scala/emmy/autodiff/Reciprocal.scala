@@ -23,4 +23,8 @@ case class Reciprocal[U[_], V, S](upstream: Expression[U, V, S])
     }
   }
 
+  override def toString: String = {
+    "(1 / " + upstream + ")"
+  }
+
 }

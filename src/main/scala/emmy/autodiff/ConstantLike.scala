@@ -16,6 +16,10 @@ trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
     val shape = ops.shapeOf(gc(v))
     ops.fill(shape, vt.zero)
   }
+
+  override def toString: String = {
+    value.toString
+  }
 }
 
 case class Constant[U[_], V, S](value: U[V])

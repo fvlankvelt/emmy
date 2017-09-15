@@ -8,10 +8,14 @@ package object autodiff {
 
   trait UnaryValueFunc[V] extends (V => V) {
 
+    def name: String
+
     def grad(v: V): V
   }
 
   trait CollectValueFunc[V] extends ((V, V) => V) {
+
+    def name: String
 
     def start: V
 
@@ -26,6 +30,8 @@ package object autodiff {
       UnaryExpression(node, impl)
 
     def wrapFunc[V](fn: UnaryValueFunc[V]): Impl[V] = new Impl[V] {
+
+      override def name: String = fn.name
 
       override def apply(v: V) = fn.apply(v)
 
@@ -46,6 +52,8 @@ package object autodiff {
       AccumulatingExpression(node, impl)
 
     def wrapFunc[V](fn: CollectValueFunc[V]): Impl[V] = new Impl[V] {
+
+      override def name: String = fn.name
 
       override def apply(acc: V, v: V) = fn.apply(acc, v)
 

@@ -38,7 +38,7 @@ trait NormalStochast[U[_], V, S] extends Stochast[V] with Node {
   override def logp(): Expression[Id, V, Any] = {
     implicit val numV = vt.valueVT
     val x = (this - mu) / sigma
-    sum(-(log(sigma) - x * x / 2.0))
+    sum(-(log(sigma) + x * x / 2.0))
   }
 }
 
@@ -59,6 +59,10 @@ case class NormalSample[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U
   override def apply(ec: EvaluationContext[V]): U[V] = {
     vt.plus(ec(mu), vt.times(vt.rnd, ec(sigma)))
   }
+
+  override def toString: String = {
+    s"~ N($mu, $sigma)"
+  }
 }
 
 case class NormalObservation[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U, V, S], value: U[V])
@@ -72,4 +76,8 @@ case class NormalObservation[U[_], V, S](mu: Expression[U, V, S], sigma: Express
   assert(mu.shape == sigma.shape)
 
   override implicit val vt = vo.bind(ops.shapeOf(value))
+
+  override def toString: String = {
+    s"<- N($mu, $sigma)"
+  }
 }

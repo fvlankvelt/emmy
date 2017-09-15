@@ -19,8 +19,13 @@ case class UnaryExpression[U[_], V, S](up: Expression[U, V, S], rf: UnaryValueFu
   override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val opsW = implicitly[ContainerOps[W]]
     val ug = gc(up, v)
-    opsW.map(ug) { v =>
-      vt.times(v, ops.map(gc(up))(rf.grad))
+    opsW.map(ug) { g =>
+      val v = gc(up)
+      vt.times(g, ops.map(v)(rf.grad))
     }
+  }
+
+  override def toString: String = {
+    rf.name + "(" + up + ")"
   }
 }

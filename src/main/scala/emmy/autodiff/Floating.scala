@@ -26,6 +26,8 @@ object Floating {
 
     override def sqrt = new UnaryValueFunc[Double] {
 
+      val name = "sqrt"
+
       def apply(x: Double) = scala.math.sqrt(x)
 
       def grad(x: Double) = 0.5 / scala.math.sqrt(x)
@@ -34,6 +36,8 @@ object Floating {
 
     override def log = new UnaryValueFunc[Double] {
 
+      val name = "log"
+
       def apply(x: Double) = scala.math.log(x)
 
       def grad(x: Double) = 1.0 / x
@@ -41,12 +45,16 @@ object Floating {
 
     override def exp = new UnaryValueFunc[Double] {
 
+      val name = "exp"
+
       def apply(x: Double) = scala.math.exp(x)
 
       def grad(x: Double) = apply(x)
     }
 
     override def lgamma = new UnaryValueFunc[Double] {
+
+      val name = "lgamma"
 
       override def apply(value: Double) =
         breeze.numerics.lgamma(value)
@@ -57,6 +65,8 @@ object Floating {
 
     override def sum = new CollectValueFunc[Double] {
 
+      val name = "sum"
+
       override def apply(a: Double, b: Double) = a + b
 
       override val start = 0.0
@@ -64,7 +74,7 @@ object Floating {
       override def grad(a: Double, b: Double) = 1.0
     }
 
-    override def rnd = Random.nextDouble()
+    override def rnd = Random.nextGaussian()
 
     override def div(x: Double, y: Double) = x / y
 

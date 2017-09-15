@@ -20,8 +20,10 @@ trait Expression[U[_], V, S] extends Node {
 
   def unary_-(): Expression[U, V, S] =
     UnaryExpression[U, V, S](this, new UnaryValueFunc[V] {
+      override def name: String = "neg"
+
       override def grad(v: V) =
-        vt.valueVT.negate(v)
+        vt.valueVT.negate(vt.valueVT.one)
 
       override def apply(v1: V) =
         vt.valueVT.negate(v1)
@@ -48,8 +50,10 @@ trait Expression[U[_], V, S] extends Node {
 
   def *[W](value: W)(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] =
     UnaryExpression[U, V, S](this, new UnaryValueFunc[V] {
+      val name = s"${value} *"
+
       override def grad(v: V) =
-        sOps.times(v, value)
+        sOps.times(vt.valueVT.one, value)
 
       override def apply(v1: V) =
         sOps.times(v1, value)
@@ -57,8 +61,10 @@ trait Expression[U[_], V, S] extends Node {
 
   def /[W](value: W)(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] =
     UnaryExpression[U, V, S](this, new UnaryValueFunc[V] {
+      val name = s"inv(${value})*"
+
       override def grad(v: V) =
-        sOps.div(v, value)
+        sOps.div(vt.valueVT.one, value)
 
       override def apply(v1: V) =
         sOps.div(v1, value)
@@ -66,6 +72,8 @@ trait Expression[U[_], V, S] extends Node {
 
   def +[W](rhs: W)(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
     UnaryExpression[U, V, S](this, new UnaryValueFunc[V] {
+      val name = s"${rhs}+"
+
       override def grad(v: V) =
         vt.valueVT.one
 
@@ -76,6 +84,8 @@ trait Expression[U[_], V, S] extends Node {
 
   def -[W](rhs: W)(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
     UnaryExpression[U, V, S](this, new UnaryValueFunc[V] {
+      val name = s"-${rhs}+"
+
       override def grad(v: V) =
         vt.valueVT.one
 

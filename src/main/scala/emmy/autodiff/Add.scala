@@ -22,4 +22,8 @@ case class Add[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, S])
     }
   }
 
+  override def toString: String = {
+    "(" + lhs + " + " + rhs + ")"
+  }
+
 }
