@@ -13,6 +13,8 @@ trait Floating[V] extends Fractional[V] {
 
   def lgamma: UnaryValueFunc[V]
 
+  def tanh: UnaryValueFunc[V]
+
   def sum: CollectValueFunc[V]
 
   def rnd: V
@@ -60,7 +62,19 @@ object Floating {
         breeze.numerics.lgamma(value)
 
       override def grad(value: Double) =
-      breeze.numerics.digamma(value)
+        breeze.numerics.digamma(value)
+    }
+
+
+    override def tanh = new UnaryValueFunc[Double] {
+
+      val name = "tanh"
+
+      override def apply(value: Double) =
+        breeze.numerics.tanh(value)
+
+      override def grad(value: Double) =
+        1.0 / scala.math.pow(breeze.numerics.cosh(value), 2)
     }
 
     override def sum = new CollectValueFunc[Double] {

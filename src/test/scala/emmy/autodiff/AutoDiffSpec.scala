@@ -2,11 +2,9 @@ package emmy.autodiff
 
 import emmy.autodiff.ContainerOps.Aux
 import emmy.distribution.Normal
-import emmy.inference._
 import org.scalatest.FlatSpec
 
 import scala.collection.mutable
-import scala.util.Random
 import scalaz.Scalaz._
 
 class AutoDiffSpec extends FlatSpec {
@@ -106,27 +104,6 @@ class AutoDiffSpec extends FlatSpec {
 
     val g_a: Double = logp.grad(gc, a)
     println(g_a)
-  }
-
-  it should "update variational parameters for each (minibatch of) data point(s)" in {
-    val mu = Normal(0.2, 1.0).sample
-    //    val sigma = Normal(0.0, 0.5).sample
-
-    val initialModel = AEVBModel[Double](Seq(mu))
-    val dist = Normal(mu, 0.2) // exp(sigma))
-
-    var model = initialModel
-    while (true) {
-      val data = for {_ <- 0 until 1} yield {
-        0.3 + Random.nextGaussian() * 0.2
-        //        0.2
-      }
-
-      val observations = data.map { d => dist.observe(d) }
-      val newModel = model.update(observations)
-      print(newModel)
-      model = newModel
-    }
   }
 
 }

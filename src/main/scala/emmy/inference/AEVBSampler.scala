@@ -1,20 +1,10 @@
 package emmy.inference
 
-import emmy.autodiff.{Expression, GradientContext, Variable}
+import emmy.autodiff.{Constant, Expression, GradientContext, ValueOps, Variable, log, sum}
 
 import scalaz.Scalaz.Id
 
-class AEVBSampler[U[_], V, S](val variable: Variable[U, V, S], val mu: U[V], sigma: U[V]) {
-
-  /*
-  println(s"new sampler for ${variable}: ${mu}, ${sigma}")
-  if (mu.asInstanceOf[Double].isNaN ||
-    abs(mu.asInstanceOf[Double]) > 20.0 ||
-    abs(sigma.asInstanceOf[Double]) > 20.0 ||
-    sigma.asInstanceOf[Double].isNaN) {
-    assert(false)
-  }
-  */
+class AEVBSampler[U[_], V, S](val variable: Variable[U, V, S], val mu: U[V], val sigma: U[V])(implicit idT: ValueOps[Id, V, Any]) {
 
   // @formatter:off
   /**
@@ -41,30 +31,34 @@ class AEVBSampler[U[_], V, S](val variable: Variable[U, V, S], val mu: U[V], sig
     val gradP = gc(logP, variable)
     val gradQ = gradValue(value)
     val gradDelta = variable.vt.minus(gradP, gradQ)
+    val scaledDelta = vt.tanh(
+      vt.times(
+        variable.ops.fill(variable.shape, rho),
+        vt.times(sigma, gradDelta)
+      )
+    )
 
     val newMu = vt.plus(
+      mu,
       vt.times(
-        variable.ops.fill(variable.shape, fl.minus(fl.one, rho)),
-        mu
-      ),
-      vt.times(
-        vt.times(sigma, sigma),
-        vt.times(variable.ops.fill(variable.shape, rho), gradDelta)
+        sigma,
+        scaledDelta
       )
     )
 
     val lambda = vt.log(sigma)
     val newLambda =
       vt.plus(
+        lambda,
         vt.times(
-          lambda, variable.ops.fill(variable.shape, fl.minus(fl.one, rho))
-        ),
-        vt.times(
-          vt.div(vt.minus(value, mu), vt.fromInt(2)),
-          vt.times(variable.ops.fill(variable.shape, rho), gradDelta)
+          vt.div(
+            vt.minus(value, mu),
+            vt.times(vt.fromInt(2), sigma)
+          ),
+          scaledDelta
         )
       )
-    val newSigma = vt.exp(vt.div(vt.plus(newLambda, lambda), vt.fromInt(2)))
+    val newSigma = vt.exp(newLambda)
     val newSampler = new AEVBSampler[U, V, S](variable, newMu, newSigma)
     (newSampler, delta(newSampler))
   }
@@ -82,10 +76,16 @@ class AEVBSampler[U[_], V, S](val variable: Variable[U, V, S], val mu: U[V], sig
     ops.foldLeft(vt.abs(vt.div(vt.minus(mu, other.mu), sigma)))(fl.zero)(fl.sum)
   }
 
+  def logp(): Expression[Id, V, Any] = {
+    implicit val vt = variable.vt
+    implicit val numV = vt.valueVT
+    implicit val ops = variable.ops
+    val x = (variable - Constant(mu)) / Constant(sigma)
+    sum(-(log(sigma) + x * x / Constant(vt.fromInt(2))))
+  }
+
   def sample(): U[V] = {
     val vt = variable.vt
-    val value = vt.plus(mu, vt.times(vt.rnd, sigma))
-    //      println(s"sampling ${variable}: ${mu}, ${sigma} => $value")
-    value
+    vt.plus(mu, vt.times(vt.rnd, sigma))
   }
 }

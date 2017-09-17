@@ -70,6 +70,17 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
     override def apply(v: U[V]) = ops.map(v)(upstream.apply)
   }
 
+  override def tanh = new UnaryValueFunc[U[V]] {
+
+    val name = "tanh"
+
+    private val upstream = valueVT.tanh
+
+    override def grad(v: U[V]) = ops.map(v)(upstream.grad)
+
+    override def apply(v: U[V]) = ops.map(v)(upstream.apply)
+  }
+
   override def sum = new CollectValueFunc[U[V]] {
 
     val name = "sum"
@@ -82,7 +93,7 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
       (a, x) => upstream(if (a == null) upstream.start else a, x)
     }
 
-    override def grad(a: U[V], v: U[V]) = ops.zipMap(a, v)(upstream)
+    override def grad(a: U[V], v: U[V]) = ops.zipMap(a, v)(upstream.grad)
   }
 
   override def div(x: U[V], y: U[V]) = ops.zipMap(x, y)(valueVT.div)

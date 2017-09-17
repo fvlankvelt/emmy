@@ -1,6 +1,6 @@
 package emmy.inference
 
-import emmy.autodiff.{Expression, Floating, Node, Variable}
+import emmy.autodiff.{Expression, Floating, Node, ValueOps, Variable}
 import emmy.distribution.Observation
 
 import scala.annotation.tailrec
@@ -8,9 +8,9 @@ import scalaz.Scalaz.Id
 
 
 case class AEVBModel[V] private[AEVBModel](
-                                                nodes: Set[Node],
-                                                globalVars: Map[Node, Any]
-                                              )(implicit fl: Floating[V])
+                                            nodes: Set[Node],
+                                            globalVars: Map[Node, Any]
+                                          )(implicit fl: Floating[V], idT: ValueOps[Id, V, Any])
   extends Model[V] {
 
   import AEVBModel._
@@ -40,7 +40,7 @@ case class AEVBModel[V] private[AEVBModel](
     // Add the log prior of global variables to get the full
     // objective function to optimize
     val totalLogP = globalVars.values.foldLeft(logp) { case (curLogp, variable) =>
-      curLogp + variable.asInstanceOf[AEVBSampler[({type U[_]})#U, V, _]].variable.logp()
+      curLogp + variable.asInstanceOf[AEVBSampler[({type U[_]})#U, V, _]].logp()
     }
 
     // update variables by taking observations into account
@@ -51,7 +51,7 @@ case class AEVBModel[V] private[AEVBModel](
     @tailrec
     def iterate(iter: Int, samplers: Iterable[AEVBSampler[({type U[_]})#U, V, _]]): Iterable[AEVBSampler[({type U[_]})#U, V, _]] = {
       val variables = samplers.map { s => (s.variable: Node) -> (s: Any) }.toMap
-      val rho = fl.div(fl.one, fl.fromInt(iter + 1000))
+      val rho = fl.div(fl.one, fl.fromInt(iter + 10))
       val modelSample = new ModelSample[V] {
         override def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V] =
           variables(n).asInstanceOf[AEVBSampler[U, V, S]].sample()
@@ -62,7 +62,7 @@ case class AEVBModel[V] private[AEVBModel](
         sampler.update(totalLogP, gc, rho)
       }.toMap[AEVBSampler[({type U[_]})#U, V, _], V]
 
-      val totalDelta = updatedWithDelta.values.sum
+      val totalDelta = updatedWithDelta.values.sum(fl)
       if (fl.lt(totalDelta, fl.div(fl.one, fl.fromInt(1000)))) {
         updatedWithDelta.keys
       } else {
@@ -78,7 +78,7 @@ case class AEVBModel[V] private[AEVBModel](
       }.map { sampler =>
         (sampler.variable: Node) -> sampler
       }.toMap
-    )
+    )(fl, idT)
   }
 
   override def sample() = new ModelSample[V] {
@@ -114,7 +114,7 @@ object AEVBModel {
   (
     builders: Set[AEVBSamplerBuilder[W forSome {type W[_]}, V, _]],
     prior: () => ModelSample[V]
-  ): Map[Node, Any] = {
+  )(implicit idT: ValueOps[Id, V, Any]): Map[Node, Any] = {
     for {_ <- 0 until 100} {
       val modelSample = prior()
       val newVariables = builders.map {

@@ -1,6 +1,7 @@
 package emmy.inference
 
-import emmy.autodiff.{EvaluationContext, Variable}
+import emmy.autodiff.{EvaluationContext, ValueOps, Variable}
+import scalaz.Scalaz.Id
 
 import scala.collection.mutable
 
@@ -11,7 +12,7 @@ case class AEVBSamplerBuilder[U[_], V, S](variable: Variable[U, V, S]) {
     samples += ec(variable)
   }
 
-  def build(): AEVBSampler[U, V, S] = {
+  def build()(implicit idT: ValueOps[Id, V, Any]): AEVBSampler[U, V, S] = {
     implicit val numUV = variable.vt
     val size = samples.length
     val mu: U[V] = numUV.div(samples.sum(numUV), numUV.fromInt(size))
