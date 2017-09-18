@@ -87,6 +87,11 @@ case class AEVBModel[V] private[AEVBModel](
       globalVars(n).asInstanceOf[AEVBSampler[U, V, S]].sample()
   }
 
+  def distributionOf[U[_], V, S](variable: Variable[U, V, S]): (U[V], U[V]) = {
+    val sampler = globalVars(variable).asInstanceOf[AEVBSampler[U, V, S]]
+    (sampler.mu, sampler.sigma)
+  }
+
 }
 
 object AEVBModel {
