@@ -19,7 +19,7 @@ case class Reciprocal[U[_], V, S](upstream: Expression[U, V, S])
     val value = gc(upstream)
     val grad = gc(upstream, v)
     ops.map(grad) { g =>
-      vt.div(g, vt.times(value, value))
+      vt.negate(vt.div(g, vt.times(value, value)))
     }
   }
 

@@ -56,6 +56,15 @@ class AutoDiffSpec extends FlatSpec {
     assert(z == List(List(2.0, 0.0), List(0.0, 4.0)))
   }
 
+  it should "calculate derivative of a reciprocal" in {
+    val x = TestVariable[Id, Double, Any](2.0)
+    val y = Constant(1.0) / x
+    assert(y(ec) == 0.5)
+
+    val z: Double = y.grad(gc, x)
+    assert(z == -0.25)
+  }
+
   it should "calculate derivative of a scalar function" in {
     val x = TestVariable[Id, Double, Any](2.0)
     val y = log(x)
@@ -106,4 +115,12 @@ class AutoDiffSpec extends FlatSpec {
     println(g_a)
   }
 
+  it should "calculate exp derivative" in {
+    val x = TestVariable[Id, Double, Any](1.0)
+    val y = exp(x)
+    assert(y(ec) == scala.math.exp(1.0))
+
+    val z: Double = y.grad(gc, x)
+    assert(z == scala.math.exp(1.0))
+  }
 }

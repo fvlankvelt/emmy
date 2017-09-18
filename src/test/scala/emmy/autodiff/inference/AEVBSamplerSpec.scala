@@ -46,8 +46,7 @@ class AEVBSamplerSpec extends FlatSpec {
     assert(abs(newSampler.sigma - 2.0) < 0.01)
   }
 
-
-  it should "reconstruct normal stochast parameters" in {
+  it should "reconstruct normal sample parameters" in {
     val variable = new NormalSample[Id, Double, Any](1.0, 2.0)
     val logp = variable.logp()
 
@@ -64,5 +63,4 @@ class AEVBSamplerSpec extends FlatSpec {
     assert(abs(newSampler.mu - 1.0) < 0.01)
     assert(abs(newSampler.sigma - 2.0) < 0.01)
   }
-
 }

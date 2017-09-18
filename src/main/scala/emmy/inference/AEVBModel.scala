@@ -13,6 +13,8 @@ case class AEVBModel[V] private[AEVBModel](
                                           )(implicit fl: Floating[V], idT: ValueOps[Id, V, Any])
   extends Model[V] {
 
+  type Sampler = AEVBSampler[({type U[_]})#U, V, _]
+
   import AEVBModel._
 
   override def update[U[_], S](observations: Seq[Observation[U, V, S]]) = {
@@ -40,16 +42,16 @@ case class AEVBModel[V] private[AEVBModel](
     // Add the log prior of global variables to get the full
     // objective function to optimize
     val totalLogP = globalVars.values.foldLeft(logp) { case (curLogp, variable) =>
-      curLogp + variable.asInstanceOf[AEVBSampler[({type U[_]})#U, V, _]].logp()
+      curLogp + variable.asInstanceOf[Sampler].logp()
     }
 
     // update variables by taking observations into account
     val samplers = (globalVars ++ localVars).map {
-      _._2.asInstanceOf[AEVBSampler[({type U[_]})#U, V, _]]
+      _._2.asInstanceOf[Sampler]
     }
 
     @tailrec
-    def iterate(iter: Int, samplers: Iterable[AEVBSampler[({type U[_]})#U, V, _]]): Iterable[AEVBSampler[({type U[_]})#U, V, _]] = {
+    def iterate(iter: Int, samplers: Iterable[Sampler]): Iterable[Sampler] = {
       val variables = samplers.map { s => (s.variable: Node) -> (s: Any) }.toMap
       val rho = fl.div(fl.one, fl.fromInt(iter + 10))
       val modelSample = new ModelSample[V] {
@@ -57,10 +59,9 @@ case class AEVBModel[V] private[AEVBModel](
           variables(n).asInstanceOf[AEVBSampler[U, V, S]].sample()
       }
       val gc = new ModelGradientContext[V](modelSample)
-      val updatedWithDelta = samplers.map { anyS =>
-        val sampler = anyS.asInstanceOf[AEVBSampler[({type U[_]})#U, V, _]]
+      val updatedWithDelta = samplers.map { sampler =>
         sampler.update(totalLogP, gc, rho)
-      }.toMap[AEVBSampler[({type U[_]})#U, V, _], V]
+      }.toMap[Sampler, V]
 
       val totalDelta = updatedWithDelta.values.sum(fl)
       if (fl.lt(totalDelta, fl.div(fl.one, fl.fromInt(1000)))) {

@@ -1,7 +1,6 @@
 package emmy.distribution
 
-import emmy.autodiff
-import emmy.autodiff.{ContainerOps, EvaluationContext, Expression, Node, ScalarOps, ValueOps, Variable, log, sum}
+import emmy.autodiff._
 
 import scalaz.Scalaz.Id
 
@@ -14,10 +13,10 @@ case class Normal[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U, V, S
   extends Distribution[U, V, S] {
 
   override def sample =
-    NormalSample(mu, sigma)
+    new NormalSample(mu, sigma)
 
   override def observe(data: U[V]): Observation[U, V, S] =
-    NormalObservation(mu, sigma, data)
+    new NormalObservation(mu, sigma, data)
 }
 
 trait NormalStochast[U[_], V, S] extends Stochast[V] with Node {
@@ -42,7 +41,7 @@ trait NormalStochast[U[_], V, S] extends Stochast[V] with Node {
   }
 }
 
-case class NormalSample[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U, V, S])
+class NormalSample[U[_], V, S](val mu: Expression[U, V, S], val sigma: Expression[U, V, S])
                                    (implicit
                                     val vo: ValueOps[U, V, S],
                                     val idT: ValueOps[Id, V, Any],
@@ -65,7 +64,7 @@ case class NormalSample[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U
   }
 }
 
-case class NormalObservation[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U, V, S], value: U[V])
+class NormalObservation[U[_], V, S](val mu: Expression[U, V, S], val sigma: Expression[U, V, S], val value: U[V])
                                         (implicit
                                          val vo: ValueOps[U, V, S],
                                          val idT: ValueOps[Id, V, Any],
