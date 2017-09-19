@@ -1,7 +1,8 @@
-package emmy.autodiff.inference
+package emmy.inference
 
 import breeze.numerics.abs
-import emmy.autodiff.{TestVariable, Variable}
+import emmy.TestVariable
+import emmy.autodiff.Variable
 import emmy.distribution.NormalSample
 import emmy.inference.{AEVBSampler, ModelGradientContext, ModelSample}
 import org.scalatest.FlatSpec

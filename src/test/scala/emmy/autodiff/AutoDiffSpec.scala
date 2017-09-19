@@ -1,5 +1,6 @@
 package emmy.autodiff
 
+import emmy.TestVariable
 import emmy.autodiff.ContainerOps.Aux
 import emmy.distribution.Normal
 import org.scalatest.FlatSpec

@@ -1,4 +1,6 @@
-package emmy.autodiff
+package emmy
+
+import emmy.autodiff.{ContainerOps, EvaluationContext, ValueOps, Variable}
 
 case class TestVariable[U[_], V, S](value: U[V])
                                    (implicit

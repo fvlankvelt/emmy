@@ -1,4 +1,4 @@
-package emmy.autodiff.inference
+package emmy.inference
 
 import breeze.numerics.abs
 import emmy.autodiff._
