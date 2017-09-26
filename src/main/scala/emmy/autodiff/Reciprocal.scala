@@ -10,11 +10,11 @@ case class Reciprocal[U[_], V, S](upstream: Expression[U, V, S])
 
   override val parents = Seq(upstream)
 
-  override def apply(ec: EvaluationContext[V]) = {
+  override def apply(ec: EvaluationContext) = {
     vt.div(vt.one, ec(upstream))
   }
 
-  override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val ops = implicitly[ContainerOps[W]]
     val value = gc(upstream)
     val grad = gc(upstream, v)

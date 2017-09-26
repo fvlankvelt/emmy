@@ -14,9 +14,9 @@ trait Expression[U[_], V, S] extends Node {
 
   def shape: Shape
 
-  def apply(ec: EvaluationContext[V]): U[V]
+  def apply(ec: EvaluationContext): U[V]
 
-  def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U, V]
+  def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U, V]
 
   def unary_-(): Expression[U, V, S] =
     UnaryExpression[U, V, S](this, new UnaryValueFunc[V] {

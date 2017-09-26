@@ -12,11 +12,11 @@ case class Multiply[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, 
 
   override val parents = Seq(lhs, rhs)
 
-  override def apply(ec: EvaluationContext[V]) = {
+  override def apply(ec: EvaluationContext) = {
     vt.times(ec(lhs), ec(rhs))
   }
 
-  override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val ops = implicitly[ContainerOps[W]]
     val lv = gc(lhs)
     val leftg = gc(lhs, v)

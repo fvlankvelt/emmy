@@ -54,11 +54,11 @@ case class AEVBModel[V] private[AEVBModel](
     def iterate(iter: Int, samplers: Iterable[Sampler]): Iterable[Sampler] = {
       val variables = samplers.map { s => (s.variable: Node) -> (s: Any) }.toMap
       val rho = fl.div(fl.one, fl.fromInt(iter + 10))
-      val modelSample = new ModelSample[V] {
-        override def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V] =
+      val modelSample = new ModelSample {
+        override def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V] =
           variables(n).asInstanceOf[AEVBSampler[U, V, S]].sample()
       }
-      val gc = new ModelGradientContext[V](modelSample)
+      val gc = new ModelGradientContext(modelSample)
       val updatedWithDelta = samplers.map { sampler =>
         sampler.update(totalLogP, gc, rho)
       }.toMap[Sampler, V]
@@ -82,8 +82,8 @@ case class AEVBModel[V] private[AEVBModel](
     )(fl, idT)
   }
 
-  override def sample() = new ModelSample[V] {
-    override def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V] =
+  override def sample() = new ModelSample {
+    override def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V] =
       globalVars(n).asInstanceOf[AEVBSampler[U, V, S]].sample()
   }
 
@@ -107,8 +107,8 @@ object AEVBModel {
     )
 
     val globalSamplers = initialize(builders, () => {
-      new ModelSample[V] {
-        override def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V] =
+      new ModelSample {
+        override def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V] =
           throw new UnsupportedOperationException("Global priors cannot be initialized with dependencies on variables")
       }
     })
@@ -119,14 +119,14 @@ object AEVBModel {
   private[AEVBModel] def initialize[V]
   (
     builders: Set[AEVBSamplerBuilder[W forSome {type W[_]}, V, _]],
-    prior: () => ModelSample[V]
+    prior: () => ModelSample
   )(implicit idT: ValueOps[Id, V, Any]): Map[Node, Any] = {
     for {_ <- 0 until 100} {
       val modelSample = prior()
       val newVariables = builders.map {
         _.variable: Node
       }
-      val ec = new ModelEvaluationContext[V](modelSample, newVariables)
+      val ec = new ModelEvaluationContext(modelSample, newVariables)
       for {initializer <- builders} {
         initializer.eval(ec)
       }

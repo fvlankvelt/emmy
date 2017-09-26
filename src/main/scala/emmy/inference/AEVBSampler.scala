@@ -23,7 +23,7 @@ class AEVBSampler[U[_], V, S](val variable: Variable[U, V, S], val mu: U[V], val
     * the jacobian d\theta/d\sigma.  (similar factor for \mu is 1)
     */
   // @formatter:on
-  def update(logP: Expression[Id, V, Any], gc: GradientContext[V], rho: V): (AEVBSampler[U, V, S], V) = {
+  def update(logP: Expression[Id, V, Any], gc: GradientContext, rho: V): (AEVBSampler[U, V, S], V) = {
     val vt = variable.vt
     val fl = vt.valueVT
     val value = gc(variable)

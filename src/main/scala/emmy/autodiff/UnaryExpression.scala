@@ -12,11 +12,11 @@ case class UnaryExpression[U[_], V, S](up: Expression[U, V, S], rf: UnaryValueFu
 
   override val parents = Seq(up)
 
-  override def apply(ec: EvaluationContext[V]) = {
+  override def apply(ec: EvaluationContext) = {
     ops.map(ec(up))(rf.apply)
   }
 
-  override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val opsW = implicitly[ContainerOps[W]]
     val ug = gc(up, v)
     opsW.map(ug) { g =>

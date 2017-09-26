@@ -8,7 +8,7 @@ trait Variable[U[_], V, S] extends Expression[U, V, S] with Stochast[V] {
 //  override def apply(evaluationContext: EvaluationContext): U[V] =
 //    throw new UnsupportedOperationException("Evaluation context should provide value for variable")
 
-  override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val ops = implicitly[ContainerOps[W]]
     val shape = ops.shapeOf(gc(v))
     if (this == v) {

@@ -8,7 +8,7 @@ import scala.collection.mutable
 case class AEVBSamplerBuilder[U[_], V, S](variable: Variable[U, V, S]) {
   private val samples: mutable.Buffer[U[V]] = mutable.Buffer.empty
 
-  def eval(ec: EvaluationContext[V]): Unit = {
+  def eval(ec: EvaluationContext): Unit = {
     samples += ec(variable)
   }
 

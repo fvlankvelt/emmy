@@ -10,7 +10,7 @@ case class TestVariable[U[_], V, S](value: U[V])
 
   override def shape = ops.shapeOf(value)
 
-  override def apply(ec: EvaluationContext[V]) = value
+  override def apply(ec: EvaluationContext) = value
 
   override def logp() = ???
 

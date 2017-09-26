@@ -9,9 +9,9 @@ trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
 
   override def shape = ops.shapeOf(value)
 
-  override def apply(ec: EvaluationContext[V]) = value
+  override def apply(ec: EvaluationContext) = value
 
-  override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val ops = implicitly[ContainerOps[W]]
     val shape = ops.shapeOf(gc(v))
     ops.fill(shape, vt.zero)

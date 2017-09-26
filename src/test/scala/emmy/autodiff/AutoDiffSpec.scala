@@ -10,24 +10,24 @@ import scalaz.Scalaz._
 
 class AutoDiffSpec extends FlatSpec {
 
-  val gc = new GradientContext[Double] {
+  val gc = new GradientContext {
 
     private val cache = mutable.HashMap[AnyRef, Any]()
 
-    override def apply[U[_], S](n: Expression[U, Double, S]): U[Double] = {
+    override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] = {
       n match {
-        case v: TestVariable[U, Double, S] => v.value
-        case v: Variable[U, Double, S] => cache.getOrElseUpdate(v, v.vt.rnd).asInstanceOf[U[Double]]
+        case v: TestVariable[U, V, S] => v.value
+        case v: Variable[U, V, S] => cache.getOrElseUpdate(v, v.vt.rnd).asInstanceOf[U[V]]
         case _ => n.apply(this)
       }
     }
 
-    override def apply[W[_], U[_], T, S](n: Expression[U, Double, S], v: Variable[W, Double, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
+    override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: Aux[W, T]): W[U[V]] = {
       n.grad(this, v)
     }
   }
 
-  val ec: EvaluationContext[Double] = gc
+  val ec: EvaluationContext = gc
 
 
   "AD" should "calculate scalar derivative" in {

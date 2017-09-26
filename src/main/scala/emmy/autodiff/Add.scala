@@ -12,10 +12,10 @@ case class Add[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, S])
 
   override val parents = Seq(lhs, rhs)
 
-  override def apply(ec: EvaluationContext[V]) =
+  override def apply(ec: EvaluationContext) =
       vt.plus(ec(lhs), ec(rhs))
 
-  override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val ops = implicitly[ContainerOps[W]]
     ops.zipMap(gc(lhs, v), gc(rhs, v)) {
       (lg, rg) => vt.plus(lg, rg)

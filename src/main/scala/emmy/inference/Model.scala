@@ -10,10 +10,10 @@ trait Model[V] {
 
   def update[U[_], S](o: Seq[Observation[U, V, S]]): Model[V]
 
-  def sample(): ModelSample[V]
+  def sample(): ModelSample
 }
 
-trait ModelSample[V] {
+trait ModelSample {
 
-  def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V]
+  def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V]
 }

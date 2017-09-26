@@ -18,7 +18,7 @@ case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U
 
   override val parents = Seq(up)
 
-  override def apply(ec: EvaluationContext[V]) = {
+  override def apply(ec: EvaluationContext) = {
     opsU.foldLeft(ec(up))(rf.start)(rf.apply)
   }
 
@@ -34,7 +34,7 @@ case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U
 
   // ug = (x1', x2', x3')
 
-  override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit  wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: Variable[W, V, T])(implicit  wOps: ContainerOps.Aux[W, T]) = {
     val opsW = implicitly[ContainerOps[W]]
     val ug = gc(up, v)
     val result = opsW.map(ug) { g =>

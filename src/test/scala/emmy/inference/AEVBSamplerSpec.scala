@@ -19,11 +19,11 @@ class AEVBSamplerSpec extends FlatSpec {
     val sampler = new AEVBSampler[Id, Double, Any](variable, 0.0, 1.0)
     val newSampler = (0 until 200).foldLeft(sampler) {
       case (s, _) =>
-        val modelSample = new ModelSample[Double] {
-          override def getSampleValue[U[_], S](n: Variable[U, Double, S]) =
-            s.sample().asInstanceOf[U[Double]]
+        val modelSample = new ModelSample {
+          override def getSampleValue[U[_], V, S](n: Variable[U, V, S]) =
+            s.sample().asInstanceOf[U[V]]
         }
-        val gc = new ModelGradientContext[Double](modelSample)
+        val gc = new ModelGradientContext(modelSample)
         s.update(logp, gc, 1.0)._1
     }
     assert(abs(newSampler.mu - 1.0) < 0.01)
@@ -37,11 +37,11 @@ class AEVBSamplerSpec extends FlatSpec {
     val sampler = new AEVBSampler[Id, Double, Any](variable, 0.0, 0.5)
     val newSampler = (0 until 200).foldLeft(sampler) {
       case (s, _) =>
-        val modelSample = new ModelSample[Double] {
-          override def getSampleValue[U[_], S](n: Variable[U, Double, S]) =
-            s.sample().asInstanceOf[U[Double]]
+        val modelSample = new ModelSample {
+          override def getSampleValue[U[_], V, S](n: Variable[U, V, S]) =
+            s.sample().asInstanceOf[U[V]]
         }
-        val gc = new ModelGradientContext[Double](modelSample)
+        val gc = new ModelGradientContext(modelSample)
         s.update(logp, gc, 1.0)._1
     }
     assert(abs(newSampler.sigma - 2.0) < 0.01)
@@ -54,11 +54,11 @@ class AEVBSamplerSpec extends FlatSpec {
     val sampler = new AEVBSampler[Id, Double, Any](variable, 0.0, 0.5)
     val newSampler = (0 until 200).foldLeft(sampler) {
       case (s, _) =>
-        val modelSample = new ModelSample[Double] {
-          override def getSampleValue[U[_], S](n: Variable[U, Double, S]) =
-            s.sample().asInstanceOf[U[Double]]
+        val modelSample = new ModelSample {
+          override def getSampleValue[U[_], V, S](n: Variable[U, V, S]) =
+            s.sample().asInstanceOf[U[V]]
         }
-        val gc = new ModelGradientContext[Double](modelSample)
+        val gc = new ModelGradientContext(modelSample)
         s.update(logp, gc, 1.0)._1
     }
     assert(abs(newSampler.mu - 1.0) < 0.01)
