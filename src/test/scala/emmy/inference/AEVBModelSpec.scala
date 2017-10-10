@@ -3,7 +3,6 @@ package emmy.inference
 import breeze.numerics.abs
 import emmy.autodiff._
 import emmy.distribution.Normal
-import emmy.inference.{AEVBModel, AEVBSampler}
 import org.scalatest.FlatSpec
 
 import scala.util.Random
@@ -17,7 +16,7 @@ class AEVBModelSpec extends FlatSpec {
     val initialModel = AEVBModel[Double](Seq(mu))
     val dist = Normal(mu, 0.2)
 
-    val finalModel = (0 until 10).foldLeft(initialModel) {
+    val finalModel = (0 until 100).foldLeft(initialModel) {
       case (model, _) =>
         val data = for {_ <- 0 until 100} yield {
           0.3 + Random.nextGaussian() * 0.2
@@ -26,7 +25,7 @@ class AEVBModelSpec extends FlatSpec {
         val observations = data.map { d => dist.observe(d) }
         model.update(observations)
     }
-    val sampler = finalModel.globalVars.head._2.asInstanceOf[AEVBSampler[Id, Double, Any]]
+    val sampler = finalModel.getSampler[Id, Any](mu)
     assert(abs(sampler.mu - 0.3) < 0.01)
   }
 
@@ -45,7 +44,7 @@ class AEVBModelSpec extends FlatSpec {
         val observations = data.map { d => dist.observe(d) }
         model.update(observations)
     }
-    val sampler = finalModel.globalVars.head._2.asInstanceOf[AEVBSampler[Id, Double, Any]]
+    val sampler = finalModel.getSampler[Id, Any](logSigma)
     assert(abs(sampler.mu - 0.2) < 0.05)
   }
 

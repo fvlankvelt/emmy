@@ -65,7 +65,6 @@ object Floating {
         breeze.numerics.digamma(value)
     }
 
-
     override def tanh = new UnaryValueFunc[Double] {
 
       val name = "tanh"
@@ -113,5 +112,4 @@ object Floating {
     override def compare(x: Double, y: Double) = x.compareTo(y)
   }
 
-  implicit def toFloating[U[_], V, UVS](implicit numV: Floating[V], ops: ContainerOps.Aux[U, UVS]): Floating[U[V]] = ValueOps.valueOps[U, V, UVS]
 }

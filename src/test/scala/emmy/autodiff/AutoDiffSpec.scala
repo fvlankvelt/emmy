@@ -10,24 +10,24 @@ import scalaz.Scalaz._
 
 class AutoDiffSpec extends FlatSpec {
 
-  val gc = new GradientContext {
+  val gc = new GradientContext[Double] {
 
     private val cache = mutable.HashMap[AnyRef, Any]()
 
-    override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] = {
+    override def apply[U[_], S](n: Expression[U, Double, S]): U[Double] = {
       n match {
-        case v: TestVariable[U, V, S] => v.value
-        case v: Variable[U, V, S] => cache.getOrElseUpdate(v, v.vt.rnd).asInstanceOf[U[V]]
+        case v: TestVariable[U, Double, S] => v.value
+        case v: Variable[U, Double, S] => cache.getOrElseUpdate(v, v.vt(this).rnd).asInstanceOf[U[Double]]
         case _ => n.apply(this)
       }
     }
 
-    override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: Aux[W, T]): W[U[V]] = {
+    override def apply[W[_], U[_], T, S](n: Expression[U, Double, S], v: Variable[W, Double, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
       n.grad(this, v)
     }
   }
 
-  val ec: EvaluationContext = gc
+  val ec: EvaluationContext[Double] = gc
 
 
   "AD" should "calculate scalar derivative" in {
@@ -123,5 +123,12 @@ class AutoDiffSpec extends FlatSpec {
 
     val z: Double = y.grad(gc, x)
     assert(z == scala.math.exp(1.0))
+  }
+
+  it should "derive zero for gradient of constant" in {
+    val x = TestVariable[Id, Double, Any](1.0)
+    val y = Constant[Id, Double, Any](2.0)
+    val g: Double = y.grad(gc, x)
+    assert(g == 0.0)
   }
 }

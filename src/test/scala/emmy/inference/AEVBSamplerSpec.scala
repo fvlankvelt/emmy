@@ -2,9 +2,8 @@ package emmy.inference
 
 import breeze.numerics.abs
 import emmy.TestVariable
-import emmy.autodiff.Variable
-import emmy.distribution.NormalSample
-import emmy.inference.{AEVBSampler, ModelGradientContext, ModelSample}
+import emmy.autodiff.{Node, Variable}
+import emmy.distribution.Normal
 import org.scalatest.FlatSpec
 
 import scalaz.Scalaz.Id
@@ -19,11 +18,8 @@ class AEVBSamplerSpec extends FlatSpec {
     val sampler = new AEVBSampler[Id, Double, Any](variable, 0.0, 1.0)
     val newSampler = (0 until 200).foldLeft(sampler) {
       case (s, _) =>
-        val modelSample = new ModelSample {
-          override def getSampleValue[U[_], V, S](n: Variable[U, V, S]) =
-            s.sample().asInstanceOf[U[V]]
-        }
-        val gc = new ModelGradientContext(modelSample)
+        val model = new AEVBSamplersModel[Double](Map((variable: Node) -> s))
+        val gc = new ModelGradientContext(model)
         s.update(logp, gc, 1.0)._1
     }
     assert(abs(newSampler.mu - 1.0) < 0.01)
@@ -37,28 +33,22 @@ class AEVBSamplerSpec extends FlatSpec {
     val sampler = new AEVBSampler[Id, Double, Any](variable, 0.0, 0.5)
     val newSampler = (0 until 200).foldLeft(sampler) {
       case (s, _) =>
-        val modelSample = new ModelSample {
-          override def getSampleValue[U[_], V, S](n: Variable[U, V, S]) =
-            s.sample().asInstanceOf[U[V]]
-        }
-        val gc = new ModelGradientContext(modelSample)
+        val model = new AEVBSamplersModel[Double](Map((variable: Node) -> s))
+        val gc = new ModelGradientContext(model)
         s.update(logp, gc, 1.0)._1
     }
     assert(abs(newSampler.sigma - 2.0) < 0.01)
   }
 
   it should "reconstruct normal sample parameters" in {
-    val variable = new NormalSample[Id, Double, Any](1.0, 2.0)
+    val variable = Normal[Id, Double, Any](1.0, 2.0).sample
     val logp = variable.logp()
 
     val sampler = new AEVBSampler[Id, Double, Any](variable, 0.0, 0.5)
     val newSampler = (0 until 200).foldLeft(sampler) {
       case (s, _) =>
-        val modelSample = new ModelSample {
-          override def getSampleValue[U[_], V, S](n: Variable[U, V, S]) =
-            s.sample().asInstanceOf[U[V]]
-        }
-        val gc = new ModelGradientContext(modelSample)
+        val model = new AEVBSamplersModel[Double](Map((variable: Node) -> s))
+        val gc = new ModelGradientContext(model)
         s.update(logp, gc, 1.0)._1
     }
     assert(abs(newSampler.mu - 1.0) < 0.01)

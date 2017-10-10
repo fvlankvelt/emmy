@@ -1,21 +1,33 @@
 package emmy.inference
 
-import emmy.autodiff.{Expression, Floating, Node, ValueOps, Variable}
+import emmy.autodiff.{Constant, EvaluationContext, Expression, Floating, Node, ValueOps, Variable}
 import emmy.distribution.Observation
 
 import scala.annotation.tailrec
 import scalaz.Scalaz.Id
 
 
-case class AEVBModel[V] private[AEVBModel](
-                                            nodes: Set[Node],
-                                            globalVars: Map[Node, Any]
-                                          )(implicit fl: Floating[V], idT: ValueOps[Id, V, Any])
-  extends Model[V] {
+class AEVBSamplersModel[V](globalVars: Map[Node, Any]) extends Model[V] {
+
+  override def sample(ec: EvaluationContext[V]) = new ModelSample[V] {
+    override def getSampleValue[U[_], S](n: Variable[U, V, S]) =
+      globalVars(n).asInstanceOf[AEVBSampler[U, V, S]].sample(ec)
+  }
+
+}
+
+class AEVBModel[V] private[AEVBModel](
+                                       nodes: Set[Node],
+                                       globalVars: Map[Node, Any]
+                                     )(implicit
+                                       fl: Floating[V])
+  extends AEVBSamplersModel[V](globalVars) {
 
   type Sampler = AEVBSampler[({type U[_]})#U, V, _]
 
   import AEVBModel._
+
+  def getSampler[U[_], S](node: Node) = globalVars(node).asInstanceOf[AEVBSampler[U, V, S]]
 
   override def update[U[_], S](observations: Seq[Observation[U, V, S]]) = {
 
@@ -54,11 +66,8 @@ case class AEVBModel[V] private[AEVBModel](
     def iterate(iter: Int, samplers: Iterable[Sampler]): Iterable[Sampler] = {
       val variables = samplers.map { s => (s.variable: Node) -> (s: Any) }.toMap
       val rho = fl.div(fl.one, fl.fromInt(iter + 10))
-      val modelSample = new ModelSample {
-        override def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V] =
-          variables(n).asInstanceOf[AEVBSampler[U, V, S]].sample()
-      }
-      val gc = new ModelGradientContext(modelSample)
+      val model = new AEVBSamplersModel[V](variables)
+      val gc = new ModelGradientContext(model)
       val updatedWithDelta = samplers.map { sampler =>
         sampler.update(totalLogP, gc, rho)
       }.toMap[Sampler, V]
@@ -73,18 +82,13 @@ case class AEVBModel[V] private[AEVBModel](
 
     val newSamplers = iterate(0, samplers)
 
-    AEVBModel(nodes,
+    new AEVBModel(nodes,
       newSamplers.filter { sampler =>
         globalVars.contains(sampler.variable)
       }.map { sampler =>
         (sampler.variable: Node) -> sampler
       }.toMap
-    )(fl, idT)
-  }
-
-  override def sample() = new ModelSample {
-    override def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V] =
-      globalVars(n).asInstanceOf[AEVBSampler[U, V, S]].sample()
+    )(fl)
   }
 
   def distributionOf[U[_], V, S](variable: Variable[U, V, S]): (U[V], U[V]) = {
@@ -106,27 +110,29 @@ object AEVBModel {
       global
     )
 
-    val globalSamplers = initialize(builders, () => {
-      new ModelSample {
-        override def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V] =
+    val globalSamplers = initialize(builders, (ec: EvaluationContext[V]) => {
+      new ModelSample[V] {
+        override def getSampleValue[U[_], S](n: Variable[U, V, S]): U[V] =
           throw new UnsupportedOperationException("Global priors cannot be initialized with dependencies on variables")
       }
     })
 
-    AEVBModel[V](global.toSet, globalSamplers)
+    new AEVBModel[V](global.toSet, globalSamplers)
   }
 
   private[AEVBModel] def initialize[V]
   (
     builders: Set[AEVBSamplerBuilder[W forSome {type W[_]}, V, _]],
-    prior: () => ModelSample
-  )(implicit idT: ValueOps[Id, V, Any]): Map[Node, Any] = {
+    prior: EvaluationContext[V] => ModelSample[V]
+  )(implicit fl: Floating[V]): Map[Node, Any] = {
     for {_ <- 0 until 100} {
-      val modelSample = prior()
-      val newVariables = builders.map {
+      val variables = builders.map {
         _.variable: Node
       }
-      val ec = new ModelEvaluationContext(modelSample, newVariables)
+      val ec = new ModelEvaluationContext[V] {
+        val newVariables = variables
+        val modelSample = prior(this: EvaluationContext[V])
+      }
       for {initializer <- builders} {
         initializer.eval(ec)
       }
