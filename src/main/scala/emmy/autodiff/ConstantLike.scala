@@ -1,20 +1,17 @@
 package emmy.autodiff
 
-import shapeless.Id
-
+import scalaz.Scalaz.Id
 
 trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
 
-  def value: U[V]
+  def value: Evaluable[U[V]]
 
-  override def shape = ops.shapeOf(value)
-
-  override def apply(ec: EvaluationContext[V]) = value
+  override def apply(ec: EvaluationContext[V]) = value(ec)
 
   override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val ops = implicitly[ContainerOps[W]]
     val shape = ops.shapeOf(gc(v))
-    ops.fill(shape, vt.zero)
+    ops.fill(shape, vt(gc).zero)
   }
 
   override def toString: String = {
@@ -22,16 +19,28 @@ trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
   }
 }
 
-case class Constant[U[_], V, S](value: U[V])
+case class Constant[U[_], V, S](value: Evaluable[U[V]])
                                (implicit
-                                val vo: ValueOps[U, V, S],
+                                val fl: Floating[V],
                                 val ops: ContainerOps.Aux[U, S])
   extends ConstantLike[U, V, S] {
 
-  override implicit val vt: ValueOps[U, V, S] = vo.bind(shape)
+  override val vt = value.map(toVT)
+
+  private def toVT(v: U[V]) = {
+    val shape = ops.shapeOf(v)
+    ValueOps(fl, ops, shape)
+  }
 }
 
 object Constant {
 
-    def apply(value: Double) = Constant[Id, Double, Any](value)
+  def apply[U[_], V, S](value: U[V])
+                       (implicit
+                        fl: Floating[V],
+                        ops: ContainerOps.Aux[U, S]): Constant[U, V, S] =
+    Constant(Evaluable.fromConstant(value))
+
+  def apply(value: Double): Constant[Id, Double, Any] =
+    Constant[Id, Double, Any](value)
 }

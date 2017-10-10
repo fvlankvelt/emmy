@@ -1,29 +1,13 @@
 package emmy.autodiff
 
+import scalaz.Scalaz.Id
 
-trait ValueOps[U[_], V, Shape] extends Floating[U[V]] {
 
-  def valueVT: Floating[V]
-
-  def ops: ContainerOps.Aux[U, Shape]
-
-  def bind(shape: Shape) =
-    UnaryValueOps[U, V, Shape](shape)(valueVT, ops)
-}
-
-object ValueOps {
-
-//  type Aux[U[_], V, S] = ValueOps[U, V] { type Shape = S }
-
-  implicit def valueOps[U[_], V, UVS](implicit numV: Floating[V], cOps: ContainerOps.Aux[U, UVS]): ValueOps[U, V, UVS] = new BinaryValueOps[U, V, UVS] {
-
-    override def valueVT = numV
-
-    override implicit def ops = cOps
-  }
-}
-
-trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
+case class ValueOps[U[_], V, Shape](
+                                     valueVT: Floating[V],
+                                     ops: ContainerOps.Aux[U, Shape],
+                                     shape: Shape
+                                   ) extends Floating[U[V]] {
 
   override def sqrt = new UnaryValueFunc[U[V]] {
 
@@ -108,9 +92,9 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
 
   override def abs(x: U[V]): U[V] = ops.map(x)(valueVT.abs)
 
-  override def rnd: U[V] = invalidOp("rnd")
+  override def fromInt(x: Int) = ops.fill(shape, valueVT.fromInt(x))
 
-  override def fromInt(x: Int): U[V] = invalidOp("fromInt")
+  override def rnd = ops.fill(shape, valueVT.rnd)
 
   override def toInt(x: U[V]) = invalidOp("toInt")
 
@@ -127,13 +111,7 @@ trait BinaryValueOps[U[_], V, S] extends ValueOps[U, V, S] {
   }
 }
 
-case class UnaryValueOps[U[_], V, S](shape: S)(implicit
-                                               val valueVT: Floating[V],
-                                               val ops: ContainerOps.Aux[U, S])
-  extends BinaryValueOps[U, V, S] {
-
-  override def fromInt(x: Int) = ops.fill(shape, valueVT.fromInt(x))
-
-  override def rnd = ops.fill(shape, valueVT.rnd)
+object ValueOps {
+  implicit def idOps[V](implicit fl: Floating[V]): ValueOps[Id, V, Any] =
+    ValueOps(fl, ContainerOps.idOps, null)
 }
-

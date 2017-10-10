@@ -1,18 +1,16 @@
 package emmy
 
-import emmy.autodiff.{ContainerOps, EvaluationContext, ValueOps, Variable}
+import emmy.autodiff.{ContainerOps, Evaluable, EvaluationContext, Floating, ValueOps, Variable}
 
 case class TestVariable[U[_], V, S](value: U[V])
                                    (implicit
-                                    val vo: ValueOps[U, V, S],
+                                    val fl: Floating[V],
                                     val ops: ContainerOps.Aux[U, S])
   extends Variable[U, V, S] {
-
-  override def shape = ops.shapeOf(value)
 
   override def apply(ec: EvaluationContext[V]) = value
 
   override def logp() = ???
 
-  override implicit val vt = vo.bind(ops.shapeOf(value))
+  override val vt = Evaluable.fromConstant(ValueOps(fl, ops, ops.shapeOf(value)))
 }

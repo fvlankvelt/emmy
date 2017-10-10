@@ -4,10 +4,31 @@ import emmy.autodiff._
 
 import scalaz.Scalaz.Id
 
-case class Normal[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U, V, S])
+trait NormalStochast[U[_], V, S] extends Stochast[V] with Node {
+  self: Expression[U, V, S] =>
+
+  def mu: Expression[U, V, S]
+
+  def sigma: Expression[U, V, S]
+
+  def fl: Floating[V]
+
+  def so: ScalarOps[V, Double]
+
+  override def parents = Seq(mu, sigma)
+
+  override def logp(): Expression[Id, V, Any] = {
+    implicit val numV = fl
+    implicit val scal = so
+    val x = (this - mu) / sigma
+    sum(-(log(sigma) + x * x / 2.0))
+  }
+}
+
+case class Normal[U[_], V, S](mu: Expression[U, V, S],
+                              sigma: Expression[U, V, S])
                              (implicit
-                              vt: ValueOps[U, V, S],
-                              idT: ValueOps[Id, V, Any],
+                              fl: Floating[V],
                               ops: ContainerOps.Aux[U, S],
                               so: ScalarOps[V, Double])
   extends Distribution[U, V, S] {
@@ -17,66 +38,42 @@ case class Normal[U[_], V, S](mu: Expression[U, V, S], sigma: Expression[U, V, S
 
   override def observe(data: U[V]): Observation[U, V, S] =
     new NormalObservation(mu, sigma, data)
-}
 
-trait NormalStochast[U[_], V, S] extends Stochast[V] with Node {
-  self: Expression[U, V, S] =>
+  class NormalSample private[Normal](val mu: Expression[U, V, S],
+                                     val sigma: Expression[U, V, S])
+                                    (implicit
+                                     val fl: Floating[V],
+                                     val ops: ContainerOps.Aux[U, S],
+                                     val so: ScalarOps[V, Double])
+    extends Variable[U, V, S] with NormalStochast[U, V, S] {
 
-  def mu: Expression[U, V, S]
+    override val vt = mu.vt
 
-  def sigma: Expression[U, V, S]
+    override def apply(ec: EvaluationContext[V]): U[V] = {
+      val valueT = vt(ec)
+      valueT.plus(ec(mu), valueT.times(valueT.rnd, ec(sigma)))
+    }
 
-  def vt: ValueOps[U, V, S]
-
-  implicit def idT: ValueOps[Id, V, Any]
-
-  implicit def so: ScalarOps[V, Double]
-
-  override def parents = Seq(mu, sigma)
-
-  override def logp(): Expression[Id, V, Any] = {
-    implicit val numV = vt.valueVT
-    val x = (this - mu) / sigma
-    sum(-(log(sigma) + x * x / 2.0))
-  }
-}
-
-class NormalSample[U[_], V, S](val mu: Expression[U, V, S], val sigma: Expression[U, V, S])
-                                   (implicit
-                                    val vo: ValueOps[U, V, S],
-                                    val idT: ValueOps[Id, V, Any],
-                                    val ops: ContainerOps.Aux[U, S],
-                                    val so: ScalarOps[V, Double])
-  extends Variable[U, V, S] with NormalStochast[U, V, S] {
-
-  assert(mu.shape == sigma.shape)
-
-  override val shape = mu.shape
-
-  override implicit val vt = vo.bind(shape)
-
-  override def apply(ec: EvaluationContext[V]): U[V] = {
-    vt.plus(ec(mu), vt.times(vt.rnd, ec(sigma)))
+    override def toString: String = {
+      s"~ N($mu, $sigma)"
+    }
   }
 
-  override def toString: String = {
-    s"~ N($mu, $sigma)"
+  class NormalObservation private[Normal](val mu: Expression[U, V, S],
+                                          val sigma: Expression[U, V, S],
+                                          val value: Evaluable[U[V]])
+                                         (implicit
+                                          val fl: Floating[V],
+                                          val ops: ContainerOps.Aux[U, S],
+                                          val so: ScalarOps[V, Double])
+    extends Observation[U, V, S] with NormalStochast[U, V, S] {
+
+    override val vt = mu.vt
+
+    override def toString: String = {
+      s"<- N($mu, $sigma)"
+    }
   }
+
 }
 
-class NormalObservation[U[_], V, S](val mu: Expression[U, V, S], val sigma: Expression[U, V, S], val value: U[V])
-                                        (implicit
-                                         val vo: ValueOps[U, V, S],
-                                         val idT: ValueOps[Id, V, Any],
-                                         val ops: ContainerOps.Aux[U, S],
-                                         val so: ScalarOps[V, Double])
-  extends Observation[U, V, S] with NormalStochast[U, V, S] {
-
-  assert(mu.shape == sigma.shape)
-
-  override implicit val vt = vo.bind(ops.shapeOf(value))
-
-  override def toString: String = {
-    s"<- N($mu, $sigma)"
-  }
-}

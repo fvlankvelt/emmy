@@ -17,7 +17,7 @@ class AutoDiffSpec extends FlatSpec {
     override def apply[U[_], S](n: Expression[U, Double, S]): U[Double] = {
       n match {
         case v: TestVariable[U, Double, S] => v.value
-        case v: Variable[U, Double, S] => cache.getOrElseUpdate(v, v.vt.rnd).asInstanceOf[U[Double]]
+        case v: Variable[U, Double, S] => cache.getOrElseUpdate(v, v.vt(this).rnd).asInstanceOf[U[Double]]
         case _ => n.apply(this)
       }
     }
@@ -123,5 +123,12 @@ class AutoDiffSpec extends FlatSpec {
 
     val z: Double = y.grad(gc, x)
     assert(z == scala.math.exp(1.0))
+  }
+
+  it should "derive zero for gradient of constant" in {
+    val x = TestVariable[Id, Double, Any](1.0)
+    val y = Constant[Id, Double, Any](2.0)
+    val g: Double = y.grad(gc, x)
+    assert(g == 0.0)
   }
 }
