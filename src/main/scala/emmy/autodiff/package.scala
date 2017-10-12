@@ -4,7 +4,7 @@ import scalaz.Scalaz.Id
 
 package object autodiff {
 
-  type Gradient[W[_], A[_], V] = W[A[V]]
+  type Gradient[W[_], A[_]] = W[A[Double]]
 
   trait UnaryValueFunc[V] extends (V => V) {
 
@@ -27,9 +27,9 @@ package object autodiff {
 
     def name: String
 
-    def apply(ec: EvaluationContext[_], v: V): V
+    def apply(ec: EvaluationContext, v: V): V
 
-    def grad(gc: GradientContext[_], v: V): V
+    def grad(gc: GradientContext, v: V): V
   }
 
   object EvaluableValueFunc {
@@ -37,9 +37,9 @@ package object autodiff {
 
       override def name = rf.name
 
-      override def apply(ec: EvaluationContext[_], v: V) = rf(v)
+      override def apply(ec: EvaluationContext, v: V) = rf(v)
 
-      override def grad(gc: GradientContext[_], v: V) = rf.grad(v)
+      override def grad(gc: GradientContext, v: V) = rf.grad(v)
     }
   }
 
@@ -53,9 +53,9 @@ package object autodiff {
 
       override def name: String = fn.name
 
-      override def apply(ec: EvaluationContext[_], v: V) = fn.apply(ec, v)
+      override def apply(ec: EvaluationContext, v: V) = fn.apply(ec, v)
 
-      override def grad(gc: GradientContext[_], v: V) = fn.grad(gc, v)
+      override def grad(gc: GradientContext, v: V) = fn.grad(gc, v)
     }
 
     trait Impl[V] extends EvaluableValueFunc[V]
@@ -67,6 +67,7 @@ package object autodiff {
     def apply[U[_], V, S](node: Expression[U, V, S])
                          (implicit
                           fl: Floating[V],
+                          so: ScalarOps[Double, V],
                           ops: ContainerOps[U],
                           impl: Impl[V]): Expression[Id, V, Any] =
       AccumulatingExpression(node, impl)
@@ -86,14 +87,14 @@ package object autodiff {
 
   }
 
-  trait EvaluationContext[V] {
+  trait EvaluationContext {
 
-    def apply[U[_], S](n: Expression[U, V, S]): U[V]
+    def apply[U[_], V, S](n: Expression[U, V, S]): U[V]
   }
 
-  trait GradientContext[V] extends EvaluationContext[V] {
+  trait GradientContext extends EvaluationContext {
 
-    def apply[W[_], U[_], T, S](n: Expression[U, V, S], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[V]]
+    def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[Double]]
   }
 
   object log extends UnaryNodeFunc {
@@ -118,32 +119,35 @@ package object autodiff {
 
   implicit def nodeNumeric[U[_], V, S](implicit
                                        fl: Floating[V],
-                                       cOps: ContainerOps.Aux[U, S]): Numeric[Expression[U, V, S]] = new Numeric[Expression[U, V, S]] {
+                                       so: ScalarOps[U[Double], U[V]],
+                                       cOps: ContainerOps.Aux[U, S]): Numeric[Expression[U, V, S]] =
+    new Numeric[Expression[U, V, S]] {
 
-    override def plus(x: Expression[U, V, S], y: Expression[U, V, S]) = x + y
+      override def plus(x: Expression[U, V, S], y: Expression[U, V, S]) = x + y
 
-    override def minus(x: Expression[U, V, S], y: Expression[U, V, S]) = x - y
+      override def minus(x: Expression[U, V, S], y: Expression[U, V, S]) = x - y
 
-    override def times(x: Expression[U, V, S], y: Expression[U, V, S]) = x * y
+      override def times(x: Expression[U, V, S], y: Expression[U, V, S]) = x * y
 
-    override def negate(x: Expression[U, V, S]) = -x
+      override def negate(x: Expression[U, V, S]) = -x
 
-    override def fromInt(x: Int) = Constant(cOps.lift(fl.fromInt(x)))
+      override def fromInt(x: Int) = Constant(cOps.lift(fl.fromInt(x)))
 
-    override def toInt(x: Expression[U, V, S]) = ???
+      override def toInt(x: Expression[U, V, S]) = ???
 
-    override def toLong(x: Expression[U, V, S]) = ???
+      override def toLong(x: Expression[U, V, S]) = ???
 
-    override def toFloat(x: Expression[U, V, S]) = ???
+      override def toFloat(x: Expression[U, V, S]) = ???
 
-    override def toDouble(x: Expression[U, V, S]) = ???
+      override def toDouble(x: Expression[U, V, S]) = ???
 
-    override def compare(x: Expression[U, V, S], y: Expression[U, V, S]) = ???
-  }
+      override def compare(x: Expression[U, V, S], y: Expression[U, V, S]) = ???
+    }
 
   implicit def toNode[U[_], V, S](value: U[V])
                                  (implicit
                                   fl: Floating[V],
+                                  so: ScalarOps[U[Double], U[V]],
                                   ops: ContainerOps.Aux[U, S]): Expression[U, V, S] = {
     Constant[U, V, S](value)
   }
@@ -151,6 +155,7 @@ package object autodiff {
   implicit def toIdNode[V](value: V)
                           (implicit
                            fl: Floating[V],
+                           so: ScalarOps[Double, V],
                            ops: ContainerOps.Aux[Id, Any]): Expression[Id, V, Any] = {
     Constant[Id, V, Any](value)
   }

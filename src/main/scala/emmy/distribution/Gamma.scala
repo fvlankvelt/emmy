@@ -1,76 +1,71 @@
 package emmy.distribution
 
-import emmy.autodiff.{ContainerOps, Evaluable, EvaluationContext, Expression, Floating, ScalarOps, Variable, lgamma, log, sum}
+import emmy.autodiff.{ContainerOps, Evaluable, EvaluationContext, Expression, ScalarOps, Variable, lgamma, log, sum}
 
 import scalaz.Scalaz.Id
 
-trait GammaStochast[U[_], V, S] extends Stochast[V] {
-  self: Expression[U, V, S] =>
+trait GammaStochast[U[_], S] extends Stochast {
+  self: Expression[U, Double, S] =>
 
-  def alpha: Expression[U, V, S]
+  def alpha: Expression[U, Double, S]
 
-  def beta: Expression[U, V, S]
-
-  def fl: Floating[V]
-
-  def so: ScalarOps[V, Double]
+  def beta: Expression[U, Double, S]
 
   override def parents = Seq(alpha, beta)
 
-  override def logp(): Expression[Id, V, Any] = {
-    implicit val numV = fl
-    implicit val iso = so
-    sum(alpha * log(beta) + (alpha - 1.0) * log(this) - beta * this - lgamma(alpha))
+  override def logp(): Expression[Id, Double, Any] = {
+    sum(alpha * log(beta) + (alpha - 1.0) * log(this) - beta * this - lgamma(alpha)).toDouble()
   }
 }
 
-case class Gamma[U[_], V, S](alpha: Expression[U, V, S], beta: Expression[U, V, S])
+case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, Double, S])
                             (implicit
-                             fl: Floating[V],
-                             ops: ContainerOps.Aux[U, S],
-                             so: ScalarOps[V, Double])
-  extends Distribution[U, V, S] {
+                             ops: ContainerOps.Aux[U, S])
+  extends Distribution[U, Double, S] {
 
   //  assert(alpha.shape == beta.shape)
 
   override def sample =
     new GammaSample(alpha, beta)
 
-  override def observe(data: U[V]) =
+  override def observe(data: U[Double]) =
     new GammaObservation(alpha, beta, data)
 
-  class GammaSample private[Gamma](val alpha: Expression[U, V, S],
-                                   val beta: Expression[U, V, S])
+  class GammaSample private[Gamma](val alpha: Expression[U, Double, S],
+                                   val beta: Expression[U, Double, S])
                                   (implicit
-                                   val fl: Floating[V],
-                                   val ops: ContainerOps.Aux[U, S],
-                                   val so: ScalarOps[V, Double])
-    extends Variable[U, V, S] with GammaStochast[U, V, S] {
+                                   val ops: ContainerOps.Aux[U, S])
+    extends Variable[U, S] with GammaStochast[U, S] {
 
     override val vt = alpha.vt
 
-    override def apply(ec: EvaluationContext[V]): U[V] = {
+    override val so: ScalarOps[U[Double], U[Double]] =
+      ScalarOps.liftBoth[U, Double, Double](ScalarOps.doubleOps, ops)
+
+    override def apply(ec: EvaluationContext): U[Double] = {
       val alphaV = ec(alpha)
       val betaV = ec(beta)
       ops.zipMap(alphaV, betaV) {
         (a, b) =>
           val valueVT = vt(ec).valueVT
           val g = breeze.stats.distributions.Gamma(valueVT.toDouble(a), 1.0 / valueVT.toDouble(b))
-          so.times(valueVT.one, g.draw())
+          g.draw()
       }
     }
   }
 
-  class GammaObservation private[Gamma](val alpha: Expression[U, V, S],
-                                        val beta: Expression[U, V, S],
-                                        val value: Evaluable[U[V]])
+  class GammaObservation private[Gamma](val alpha: Expression[U, Double, S],
+                                        val beta: Expression[U, Double, S],
+                                        val value: Evaluable[U[Double]])
                                        (implicit
-                                        val fl: Floating[V],
-                                        val ops: ContainerOps.Aux[U, S],
-                                        val so: ScalarOps[V, Double])
-    extends Observation[U, V, S] with GammaStochast[U, V, S] {
+                                        val ops: ContainerOps.Aux[U, S])
+    extends Observation[U, Double, S] with GammaStochast[U, S] {
 
-    override val vt = alpha.vt
+    override val vt =
+      alpha.vt
+
+    override val so: ScalarOps[U[Double], U[Double]] =
+      ScalarOps.liftBoth[U, Double, Double](ScalarOps.doubleOps, ops)
   }
 
 }

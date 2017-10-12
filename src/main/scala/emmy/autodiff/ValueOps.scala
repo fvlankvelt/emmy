@@ -9,6 +9,8 @@ case class ValueOps[U[_], V, Shape](
                                      shape: Shape
                                    ) extends Floating[U[V]] {
 
+  def forDouble: ValueOps[U, Double, Shape] = ValueOps(Floating.doubleFloating, ops, shape)
+
   override def sqrt = new UnaryValueFunc[U[V]] {
 
     val name = "sqrt"

@@ -1,14 +1,14 @@
 package emmy.inference
 
-import emmy.autodiff.{EvaluationContext, Floating, ValueOps, Variable}
+import emmy.autodiff.{EvaluationContext, ValueOps, Variable}
 
 import scala.collection.mutable
 
-case class AEVBSamplerBuilder[U[_], V, S](variable: Variable[U, V, S]) {
-  private val samples: mutable.Buffer[U[V]] = mutable.Buffer.empty
-  private var numUVOpt: Option[ValueOps[U, V, S]] = None
+case class AEVBSamplerBuilder[U[_], S](variable: Variable[U, S]) {
+  private val samples: mutable.Buffer[U[Double]] = mutable.Buffer.empty
+  private var numUVOpt: Option[ValueOps[U, Double, S]] = None
 
-  def eval(ec: EvaluationContext[V]): Unit = {
+  def eval(ec: EvaluationContext): Unit = {
     samples += ec(variable)
     numUVOpt match {
       case Some(numV) =>
@@ -18,10 +18,10 @@ case class AEVBSamplerBuilder[U[_], V, S](variable: Variable[U, V, S]) {
     }
   }
 
-  def build()(implicit fl: Floating[V]): AEVBSampler[U, V, S] = {
+  def build(): AEVBSampler[U, S] = {
     implicit val numUV = numUVOpt.get
     val size = samples.length
-    val mu: U[V] = numUV.div(samples.sum(numUV), numUV.fromInt(size))
+    val mu: U[Double] = numUV.div(samples.sum(numUV), numUV.fromInt(size))
     val sigma2 = samples.map { x =>
       val delta = numUV.minus(x, mu)
       numUV.times(delta, delta)

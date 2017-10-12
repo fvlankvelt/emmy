@@ -13,7 +13,7 @@ class AEVBModelSpec extends FlatSpec {
   "The AEVB model" should "update mu for each (minibatch of) data point(s)" in {
     val mu = Normal(0.0, 1.0).sample
 
-    val initialModel = AEVBModel[Double](Seq(mu))
+    val initialModel = AEVBModel(Seq(mu))
     val dist = Normal(mu, 0.2)
 
     val finalModel = (0 until 100).foldLeft(initialModel) {
@@ -25,14 +25,14 @@ class AEVBModelSpec extends FlatSpec {
         val observations = data.map { d => dist.observe(d) }
         model.update(observations)
     }
-    val sampler = finalModel.getSampler[Id, Any](mu)
+    val sampler = finalModel.getSampler[Id, Double, Any](mu)
     assert(abs(sampler.mu - 0.3) < 0.01)
   }
 
   it should "update sigma for each (minibatch of) data point(s)" in {
     val logSigma = Normal(0.5, 1.0).sample
 
-    val initialModel = AEVBModel[Double](Seq(logSigma))
+    val initialModel = AEVBModel(Seq(logSigma))
     val dist = Normal(0.3, exp(logSigma))
 
     val finalModel = (0 until 100).foldLeft(initialModel) {
@@ -44,11 +44,11 @@ class AEVBModelSpec extends FlatSpec {
         val observations = data.map { d => dist.observe(d) }
         model.update(observations)
     }
-    val sampler = finalModel.getSampler[Id, Any](logSigma)
+    val sampler = finalModel.getSampler[Id, Double, Any](logSigma)
     assert(abs(sampler.mu - 0.2) < 0.05)
   }
 
-  def printVariable[U[_], V, S](model: AEVBModel[Double], name: String, variable: Variable[U, V, S]): Unit = {
+  def printVariable[U[_], V, S](model: AEVBModel, name: String, variable: Variable[U, S]): Unit = {
     val dist = model.distributionOf(variable)
     println(s"$name: mu = ${dist._1}, sigma = ${dist._2}")
   }
@@ -71,7 +71,7 @@ class AEVBModelSpec extends FlatSpec {
     val a = Normal(0.0, 1.0).sample
     val b = Normal(List(0.0, 0.0), List(1.0, 1.0)).sample
     val e = Normal(0.0, 1.0).sample
-    val model = AEVBModel[Double](Seq[Node](a, b, e))
+    val model = AEVBModel(Seq[Node](a, b, e))
 
     println("Prior model:")
     printVariable(model, "a", a)

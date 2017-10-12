@@ -1,14 +1,12 @@
 package emmy.inference
 
-import emmy.autodiff.{Constant, Evaluable, EvaluationContext, Expression, Floating, GradientContext, ValueOps, Variable, log, sum}
+import emmy.autodiff.{Constant, Evaluable, EvaluationContext, Expression, GradientContext, ValueOps, Variable, log, sum}
 
 import scalaz.Scalaz.Id
 
-class AEVBSampler[U[_], V, S](val variable: Variable[U, V, S],
-                              val mu: U[V],
-                              val sigma: U[V])
-                             (implicit
-                              fl: Floating[V]) {
+class AEVBSampler[U[_], S](val variable: Variable[U, S],
+                           val mu: U[Double],
+                           val sigma: U[Double]) {
 
   // @formatter:off
   /**
@@ -27,9 +25,8 @@ class AEVBSampler[U[_], V, S](val variable: Variable[U, V, S],
     * the jacobian d\theta/d\sigma.  (similar factor for \mu is 1)
     */
   // @formatter:on
-  def update(logP: Expression[Id, V, Any], gc: GradientContext[V], rho: V): (AEVBSampler[U, V, S], V) = {
+  def update(logP: Expression[Id, Double, Any], gc: GradientContext, rho: Double): (AEVBSampler[U, S], Double) = {
     val vt = variable.vt(gc)
-    val fl = vt.valueVT
     val value = gc(variable)
     implicit val ops = variable.ops
     val gradP = gc(logP, variable)
@@ -63,29 +60,28 @@ class AEVBSampler[U[_], V, S](val variable: Variable[U, V, S],
         )
       )
     val newSigma = vt.exp(newLambda)
-    val newSampler = new AEVBSampler[U, V, S](variable, newMu, newSigma)(fl)
+    val newSampler = new AEVBSampler[U, S](variable, newMu, newSigma)
     (newSampler, delta(newSampler, vt))
   }
 
-  def gradValue(value: U[V], vt: ValueOps[U, V, S]): U[V] = {
+  def gradValue(value: U[Double], vt: ValueOps[U, Double, S]): U[Double] = {
     val delta = vt.minus(mu, value)
     vt.div(delta, vt.times(sigma, sigma))
   }
 
-  def delta(other: AEVBSampler[U, V, S], vt: ValueOps[U, V, S]): V = {
-    implicit val fl = vt.valueVT
+  def delta(other: AEVBSampler[U, S], vt: ValueOps[U, Double, S]): Double = {
     val ops = variable.ops
-    ops.foldLeft(vt.abs(vt.div(vt.minus(mu, other.mu), sigma)))(fl.zero)(fl.sum)
+    ops.foldLeft(vt.abs(vt.div(vt.minus(mu, other.mu), sigma)))(0.0)(_ + _)
   }
 
-  def logp(): Expression[Id, V, Any] = {
+  def logp(): Expression[Id, Double, Any] = {
     implicit val vt = variable.vt
     implicit val ops = variable.ops
     val x = (variable - Constant(mu)) / Constant(sigma)
     sum(-(log(Constant(Evaluable.fromConstant(sigma))) + x * x / Constant(vt.map(_.fromInt(2)))))
   }
 
-  def sample(ec: EvaluationContext[V]): U[V] = {
+  def sample(ec: EvaluationContext): U[Double] = {
     val vt = variable.vt(ec)
     vt.plus(mu, vt.times(vt.rnd, sigma))
   }

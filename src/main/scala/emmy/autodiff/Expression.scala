@@ -1,4 +1,5 @@
 package emmy.autodiff
+import emmy.autodiff.ContainerOps.Aux
 
 trait Node {
 
@@ -8,11 +9,11 @@ trait Node {
 trait Evaluable[+V] {
   self =>
 
-  def apply(ec: EvaluationContext[_]): V
+  def apply(ec: EvaluationContext): V
 
   def map[W](fn: V => W): Evaluable[W] = new Evaluable[W] {
 
-    override def apply(ec: EvaluationContext[_]): W = {
+    override def apply(ec: EvaluationContext): W = {
       fn(self(ec))
     }
 
@@ -27,7 +28,7 @@ object Evaluable {
 
   implicit def fromConstant[V](value: V): Evaluable[V] = new Evaluable[V] {
 
-    override def apply(ec: EvaluationContext[_]): V = value
+    override def apply(ec: EvaluationContext): V = value
 
     override def toString() = {
       s"eval($value)"
@@ -35,32 +36,59 @@ object Evaluable {
   }
 }
 
-trait Expression[U[_], V, S] extends Node {
+trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
 
   type Shape = S
 
   implicit val ops: ContainerOps.Aux[U, Shape]
 
+  implicit val so: ScalarOps[U[Double], U[V]]
+
   implicit def vt: Evaluable[ValueOps[U, V, S]]
 
-  def apply(ec: EvaluationContext[V]): U[V]
+  def apply(ec: EvaluationContext): U[V]
 
-  def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U, V]
+  def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U]
 
   def unary_-(): Expression[U, V, S] =
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       override def name: String = "neg"
 
-      override def grad(gc: GradientContext[_], v: V) = {
+      override def grad(gc: GradientContext, v: V) = {
         val valueVT = vt(gc).valueVT
         valueVT.negate(valueVT.one)
       }
 
-      override def apply(ec: EvaluationContext[_], v: V) = {
+      override def apply(ec: EvaluationContext, v: V) = {
         val vvt = vt(ec).valueVT
         vvt.negate(v)
       }
     })
+
+  def toDouble(): Expression[U, Double, S] = {
+    val self = this
+    new Expression[U, Double, S] {
+
+      override implicit val ops: Aux[U, Shape] = self.ops
+
+      override implicit def vt: Evaluable[ValueOps[U, Double, S]] =
+        self.vt.map { up =>
+          ValueOps(Floating.doubleFloating, ops, up.shape)
+        }
+
+      override implicit val so = ScalarOps.liftBoth[U, Double, Double](ScalarOps.doubleOps, ops)
+
+      override def apply(ec: EvaluationContext): U[Double] = {
+        val valT = self.vt(ec).valueVT
+        val up = self.apply(ec)
+        ops.map(up)(valT.toDouble)
+      }
+
+      override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: Aux[W, T]): Gradient[W, U] = {
+        self.grad(gc, v)
+      }
+    }
+  }
 
   def reciprocal(): Expression[U, V, S] =
     Reciprocal(this)
@@ -85,10 +113,10 @@ trait Expression[U[_], V, S] extends Node {
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       val name = s"${value} *"
 
-      override def grad(gc: GradientContext[_], v: V) =
+      override def grad(gc: GradientContext, v: V) =
         sOps.times(vt(gc).valueVT.one, value)
 
-      override def apply(ec: EvaluationContext[_], v: V) =
+      override def apply(ec: EvaluationContext, v: V) =
         sOps.times(v, value)
     })
 
@@ -96,10 +124,10 @@ trait Expression[U[_], V, S] extends Node {
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       val name = s"inv(${value})*"
 
-      override def grad(gc: GradientContext[_], v: V) =
+      override def grad(gc: GradientContext, v: V) =
         sOps.div(vt(gc).valueVT.one, value)
 
-      override def apply(ec: EvaluationContext[_], v: V) =
+      override def apply(ec: EvaluationContext, v: V) =
         sOps.div(v, value)
     })
 
@@ -107,10 +135,10 @@ trait Expression[U[_], V, S] extends Node {
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       val name = s"${rhs}+"
 
-      override def grad(gc: GradientContext[_], v: V) =
+      override def grad(gc: GradientContext, v: V) =
         vt(gc).valueVT.one
 
-      override def apply(ec: EvaluationContext[_], v: V) =
+      override def apply(ec: EvaluationContext, v: V) =
         sOps.plus(v, rhs)
     })
   }
@@ -119,10 +147,10 @@ trait Expression[U[_], V, S] extends Node {
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       val name = s"-${rhs}+"
 
-      override def grad(gc: GradientContext[_], v: V) =
+      override def grad(gc: GradientContext, v: V) =
         vt(gc).valueVT.one
 
-      override def apply(ec: EvaluationContext[_], v: V) =
+      override def apply(ec: EvaluationContext, v: V) =
         sOps.minus(v, rhs)
     })
   }

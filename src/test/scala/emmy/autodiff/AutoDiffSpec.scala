@@ -10,28 +10,28 @@ import scalaz.Scalaz._
 
 class AutoDiffSpec extends FlatSpec {
 
-  val gc = new GradientContext[Double] {
+  val gc = new GradientContext {
 
     private val cache = mutable.HashMap[AnyRef, Any]()
 
-    override def apply[U[_], S](n: Expression[U, Double, S]): U[Double] = {
+    override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] = {
       n match {
-        case v: TestVariable[U, Double, S] => v.value
-        case v: Variable[U, Double, S] => cache.getOrElseUpdate(v, v.vt(this).rnd).asInstanceOf[U[Double]]
+        case v: TestVariable[U, S] => v.value.asInstanceOf[U[V]]
+        case v: Variable[U, S] => cache.getOrElseUpdate(v, v.vt(this).rnd).asInstanceOf[U[V]]
         case _ => n.apply(this)
       }
     }
 
-    override def apply[W[_], U[_], T, S](n: Expression[U, Double, S], v: Variable[W, Double, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
+    override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
       n.grad(this, v)
     }
   }
 
-  val ec: EvaluationContext[Double] = gc
+  val ec: EvaluationContext = gc
 
 
   "AD" should "calculate scalar derivative" in {
-    val x = TestVariable[Id, Double, Any](2.0)
+    val x = TestVariable[Id, Any](2.0)
     val y = x * x
     assert(y(ec) == 4.0)
 
@@ -40,7 +40,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "deal with constants" in {
-    val x = TestVariable[Id, Double, Any](0.0)
+    val x = TestVariable[Id, Any](0.0)
     val y = -(x - 1.0) * (x - 1.0) / 2.0
     assert(y(ec) == -0.5)
 
@@ -49,7 +49,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate vector derivative on List" in {
-    val x = TestVariable[List, Double, Int](List(1.0, 2.0))
+    val x = TestVariable[List, Int](List(1.0, 2.0))
     val y = x * x
     assert(y(ec) == List(1.0, 4.0))
 
@@ -58,7 +58,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate derivative of a reciprocal" in {
-    val x = TestVariable[Id, Double, Any](2.0)
+    val x = TestVariable[Id, Any](2.0)
     val y = Constant(1.0) / x
     assert(y(ec) == 0.5)
 
@@ -67,7 +67,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate derivative of a scalar function" in {
-    val x = TestVariable[Id, Double, Any](2.0)
+    val x = TestVariable[Id, Any](2.0)
     val y = log(x)
     assert(y(ec) == scala.math.log(2.0))
 
@@ -76,7 +76,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate derivative of a function applied to a list" in {
-    val x = TestVariable[List, Double, Int](List(1.0, 2.0))
+    val x = TestVariable[List, Int](List(1.0, 2.0))
     val y = log(x)
     assert(y(ec) == List(0.0, scala.math.log(2.0)))
 
@@ -85,8 +85,8 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate probability of observation" in {
-    val mu = TestVariable[List, Double, Int](List(0.0, 0.0))
-    val sigma = TestVariable[List, Double, Int](List(1.0, 1.0))
+    val mu = TestVariable[List, Int](List(0.0, 0.0))
+    val sigma = TestVariable[List, Int](List(1.0, 1.0))
 
     val normal = Normal(mu, sigma)
     val observation = normal.observe(List(1.0, 2.0))
@@ -117,7 +117,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate exp derivative" in {
-    val x = TestVariable[Id, Double, Any](1.0)
+    val x = TestVariable[Id, Any](1.0)
     val y = exp(x)
     assert(y(ec) == scala.math.exp(1.0))
 
@@ -126,7 +126,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "derive zero for gradient of constant" in {
-    val x = TestVariable[Id, Double, Any](1.0)
+    val x = TestVariable[Id, Any](1.0)
     val y = Constant[Id, Double, Any](2.0)
     val g: Double = y.grad(gc, x)
     assert(g == 0.0)

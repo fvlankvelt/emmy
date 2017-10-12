@@ -18,8 +18,6 @@ trait Floating[V] extends Fractional[V] {
   def sum: CollectValueFunc[V]
 
   def rnd: V
-
-  def divS[Y](x: V, y: Y)(implicit so: ScalarOps[V, Y]): V = so.div(x, y)
 }
 
 object Floating {

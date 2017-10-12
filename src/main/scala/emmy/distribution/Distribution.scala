@@ -6,7 +6,7 @@ import scalaz.Scalaz.Id
 
 trait Distribution[U[_], V, S] {
 
-  def sample: Variable[U, V, S]
+  def sample: Variable[U, S]
 
   def observe(data: U[V]): Observation[U, V, S]
 }
@@ -16,8 +16,8 @@ trait ValueDistribution[U[_], V, S] {
   def sample: U[V]
 }
 
-trait Stochast[V] {
-  def logp(): Expression[Id, V, Any]
+trait Stochast {
+  def logp(): Expression[Id, Double, Any]
 }
 
-trait Observation[U[_], V, S] extends ConstantLike[U, V, S] with Stochast[V]
+trait Observation[U[_], V, S] extends ConstantLike[U, V, S] with Stochast

@@ -3,7 +3,7 @@ package emmy.autodiff
 import scalaz.Scalaz.Id
 
 case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U, V, S], rf: CollectValueFunc[V])
-                                                               (implicit fl: Floating[V])
+                                                               (implicit fl: Floating[V], val so: ScalarOps[Double, V])
   extends Expression[Id, V, Any] {
 
   override val ops = ContainerOps.idOps
@@ -14,7 +14,7 @@ case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U
 
   override val parents = Seq(up)
 
-  override def apply(ec: EvaluationContext[V]) = {
+  override def apply(ec: EvaluationContext) = {
     opsU.foldLeft(ec(up))(rf.start)(rf.apply)
   }
 
@@ -30,19 +30,21 @@ case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U
 
   // ug = (x1', x2', x3')
 
-  override def grad[W[_], T](gc: GradientContext[V], v: Variable[W, V, T])(implicit  wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit  wOps: ContainerOps.Aux[W, T]) = {
+    implicit val sod = so
     val opsW = implicitly[ContainerOps[W]]
     val ug = gc(up, v)
     val valT = vt(gc)
+    val valD = valT.forDouble
     val result = opsW.map(ug) { g =>
       val vg = opsU.zipMap(gc(up), g)((_, _))
-      opsU.foldLeft(vg)((rf.start, valT.zero)) {
+      opsU.foldLeft(vg)((rf.start, valD.zero)) {
         (acc, x) =>
           val (av, ag) = acc
           val (xv, xg) = x
           (
             rf(av, xv),
-            valT.times(valT.plus(xg, ag), rf.grad(av, xv))
+            sod.times(valD.plus(xg, ag), rf.grad(av, xv))
           )
       }
     }
