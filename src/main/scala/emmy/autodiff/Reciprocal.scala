@@ -14,12 +14,11 @@ case class Reciprocal[U[_], V, S](upstream: Expression[U, V, S])
   }
 
   override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
-    val ops = implicitly[ContainerOps[W]]
     val value = gc(upstream)
     val grad = gc(upstream, v)
     val valT = vt(gc)
     val valD = valT.forDouble
-    ops.map(grad) { g =>
+    wOps.map(grad) { g =>
       valD.negate(so.div(g, valT.times(value, value)))
     }
   }

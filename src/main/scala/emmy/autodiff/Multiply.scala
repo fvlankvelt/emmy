@@ -14,13 +14,12 @@ case class Multiply[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, 
   }
 
   override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
-    val ops = implicitly[ContainerOps[W]]
     val lv = gc(lhs)
     val leftg = gc(lhs, v)
     val rv = gc(rhs)
     val rightg = gc(rhs, v)
     val valT = vt(gc).forDouble
-    ops.zipMap(leftg, rightg) {
+    wOps.zipMap(leftg, rightg) {
       (lg, rg) =>
         valT.plus(
           so.times(lg, rv),

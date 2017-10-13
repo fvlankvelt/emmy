@@ -32,11 +32,10 @@ case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U
 
   override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit  wOps: ContainerOps.Aux[W, T]) = {
     implicit val sod = so
-    val opsW = implicitly[ContainerOps[W]]
     val ug = gc(up, v)
     val valT = vt(gc)
     val valD = valT.forDouble
-    val result = opsW.map(ug) { g =>
+    val result = wOps.map(ug) { g =>
       val vg = opsU.zipMap(gc(up), g)((_, _))
       opsU.foldLeft(vg)((rf.start, valD.zero)) {
         (acc, x) =>
@@ -48,7 +47,7 @@ case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U
           )
       }
     }
-    opsW.map(result)(_._2)
+    wOps.map(result)(_._2)
   }
 
   override def toString: String = {
