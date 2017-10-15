@@ -1,5 +1,7 @@
 package emmy
 
+import emmy.autodiff.ContainerOps.Aux
+
 import scalaz.Scalaz.Id
 
 package object autodiff {
@@ -160,23 +162,12 @@ package object autodiff {
     Constant[Id, V, Any](value)
   }
 
-  implicit class RichScalar[W, U[_], V, S](value: W) {
-
-    def -(node: Expression[U, V, S])(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
-      -node + value
-    }
-
-    def +(node: Expression[U, V, S])(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
-      node + value
-    }
-
-    def *(node: Expression[U, V, S])(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
-      node * value
-    }
-
-    def /(node: Expression[U, V, S])(implicit sOps: ScalarOps[V, W]): Expression[U, V, S] = {
-      value * node.reciprocal()
-    }
+  implicit def liftContainer[U[_], V, S](value: U[Expression[Id, V, Any]])
+                                        (implicit
+                                         fl: Floating[V],
+                                         soo: ScalarOps[Double, V],
+                                         opso: ContainerOps.Aux[U, S]): Expression[U, V, S] = {
+    LiftedContainer[U, V, S](value)
   }
 
 }

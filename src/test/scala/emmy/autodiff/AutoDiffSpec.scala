@@ -49,7 +49,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate vector derivative on List" in {
-    val x = TestVariable[List, Int](List(1.0, 2.0))
+    val x = TestVariable(List(1.0, 2.0))
     val y = x * x
     assert(y(ec) == List(1.0, 4.0))
 
@@ -76,7 +76,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate derivative of a function applied to a list" in {
-    val x = TestVariable[List, Int](List(1.0, 2.0))
+    val x = TestVariable(List(1.0, 2.0))
     val y = log(x)
     assert(y(ec) == List(0.0, scala.math.log(2.0)))
 
@@ -85,8 +85,8 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate probability of observation" in {
-    val mu = TestVariable[List, Int](List(0.0, 0.0))
-    val sigma = TestVariable[List, Int](List(1.0, 1.0))
+    val mu = TestVariable(List(0.0, 0.0))
+    val sigma = TestVariable(List(1.0, 1.0))
 
     val normal = Normal(mu, sigma)
     val observation = normal.observe(List(1.0, 2.0))

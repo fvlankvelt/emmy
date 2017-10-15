@@ -25,7 +25,7 @@ case class Normal[U[_], S](mu: Expression[U, Double, S],
                               ops: ContainerOps.Aux[U, S])
   extends Distribution[U, Double, S] {
 
-  override def sample =
+  override def sample: Variable[U, S] =
     new NormalSample(mu, sigma)
 
   override def observe(data: U[Double]): Observation[U, Double, S] =

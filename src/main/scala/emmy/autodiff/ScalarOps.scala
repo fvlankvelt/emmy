@@ -53,4 +53,29 @@ object ScalarOps extends LowPriorityScalarOps {
 
       override def div(v: Double, y: Double) = v / y
     }
+
+  implicit val intOps: ScalarOps[Int, Int] =
+    new ScalarOps[Int, Int] {
+
+      override def plus(v: Int, y: Int) = v + y
+
+      override def minus(v: Int, y: Int) = v - y
+
+      override def times(v: Int, y: Int) = v * y
+
+      override def div(v: Int, y: Int) = v / y
+    }
+
+  implicit val intDoubleOps: ScalarOps[Double, Int] =
+    new ScalarOps[Double, Int] {
+
+      override def plus(v: Double, y: Int) = v + y
+
+      override def minus(v: Double, y: Int) = v - y
+
+      override def times(v: Double, y: Int) = v * y
+
+      override def div(v: Double, y: Int) = v / y
+    }
+
 }

@@ -2,7 +2,7 @@ package emmy.inference
 
 import breeze.numerics.abs
 import emmy.autodiff._
-import emmy.distribution.Normal
+import emmy.distribution.{Multinomial, Normal}
 import org.scalatest.FlatSpec
 
 import scala.util.Random
@@ -90,6 +90,26 @@ class AEVBModelSpec extends FlatSpec {
     printVariable(newModel, "b", b)
     printVariable(newModel, "e", e)
 
+  }
+
+  it should "do multinomial regression" in {
+    val data = {
+      val x = 1.5
+      val dist = breeze.stats.distributions.Binomial(20, 1.0 / (1.0 + math.exp(x)))
+      dist.sample(100).toList.map { n => List(n, 20 - n) }
+    }
+    val testvar = Normal(0.0, 1.0).sample
+    val p = 1.0 / (1.0 + exp(testvar))
+    val multi = Multinomial[List, Int](List(p, 1.0 - p), 20)
+    val observations = data.map { values => multi.observe(values) }
+
+    val model = AEVBModel(Seq[Node](testvar))
+    println("Prior model:")
+    printVariable(model, "testvar", testvar)
+
+    val newModel = model.update(observations)
+    println("Posterior model:")
+    printVariable(newModel, "testvar", testvar)
   }
 
 }

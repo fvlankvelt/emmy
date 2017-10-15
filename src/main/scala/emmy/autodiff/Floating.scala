@@ -110,4 +110,55 @@ object Floating {
     override def compare(x: Double, y: Double) = x.compareTo(y)
   }
 
+  implicit val intFloating: Floating[Int] = new Floating[Int] {
+
+    private def invalidOp(name: String) =
+      throw new UnsupportedOperationException(s"Operation $name is not supported on Int")
+
+    override def sqrt = invalidOp("sqrt")
+
+    override def log = invalidOp("log")
+
+    override def exp = invalidOp("exp")
+
+    override def lgamma = invalidOp("lgamma")
+
+    override def tanh = invalidOp("tanh")
+
+    override def sum = new CollectValueFunc[Int] {
+
+      val name = "sum"
+
+      override def apply(a: Int, b: Int) = a + b
+
+      override val start = 0
+
+      override def grad(a: Int, b: Int) = 1
+    }
+
+    override def rnd = Random.nextInt()
+
+    override def div(x: Int, y: Int) = x / y
+
+    override def plus(x: Int, y: Int) = x + y
+
+    override def minus(x: Int, y: Int) = x - y
+
+    override def times(x: Int, y: Int) = x * y
+
+    override def negate(x: Int) = -x
+
+    override def fromInt(x: Int) = x
+
+    override def toInt(x: Int) = x.toInt
+
+    override def toLong(x: Int) = x.toLong
+
+    override def toFloat(x: Int) = x.toFloat
+
+    override def toDouble(x: Int) = x
+
+    override def compare(x: Int, y: Int) = x.compareTo(y)
+  }
+
 }
