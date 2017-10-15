@@ -31,7 +31,7 @@ class AutoDiffSpec extends FlatSpec {
 
 
   "AD" should "calculate scalar derivative" in {
-    val x = TestVariable[Id, Any](2.0)
+    val x = TestVariable(2.0)
     val y = x * x
     assert(y(ec) == 4.0)
 
@@ -40,7 +40,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "deal with constants" in {
-    val x = TestVariable[Id, Any](0.0)
+    val x = TestVariable(0.0)
     val y = -(x - 1.0) * (x - 1.0) / 2.0
     assert(y(ec) == -0.5)
 
@@ -58,7 +58,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate derivative of a reciprocal" in {
-    val x = TestVariable[Id, Any](2.0)
+    val x = TestVariable(2.0)
     val y = Constant(1.0) / x
     assert(y(ec) == 0.5)
 
@@ -67,7 +67,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate derivative of a scalar function" in {
-    val x = TestVariable[Id, Any](2.0)
+    val x = TestVariable(2.0)
     val y = log(x)
     assert(y(ec) == scala.math.log(2.0))
 
@@ -117,7 +117,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate exp derivative" in {
-    val x = TestVariable[Id, Any](1.0)
+    val x = TestVariable(1.0)
     val y = exp(x)
     assert(y(ec) == scala.math.exp(1.0))
 
@@ -126,8 +126,8 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "derive zero for gradient of constant" in {
-    val x = TestVariable[Id, Any](1.0)
-    val y = Constant[Id, Double, Any](2.0)
+    val x = TestVariable(1.0)
+    val y = Constant(2.0)
     val g: Double = y.grad(gc, x)
     assert(g == 0.0)
   }

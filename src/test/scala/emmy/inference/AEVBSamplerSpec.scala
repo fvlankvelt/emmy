@@ -12,7 +12,7 @@ class AEVBSamplerSpec extends FlatSpec {
 
   "The AEVB sampler" should "determine \\mu close to the exact solution" in  {
 
-    val variable = new TestVariable[Id, Any](0.0)
+    val variable = TestVariable(0.0)
     val logp = -(variable - 1.0) * (variable - 1.0) / 2.0
 
     val sampler = new AEVBSampler[Id, Any](variable, 0.0, 1.0)
@@ -27,7 +27,7 @@ class AEVBSamplerSpec extends FlatSpec {
 
   it should "determine \\sigma close to the exact solution" in {
 
-    val variable = new TestVariable[Id, Any](0.0)
+    val variable = TestVariable(0.0)
     val logp = -variable * variable / 8.0
 
     val sampler = new AEVBSampler[Id, Any](variable, 0.0, 0.5)
@@ -41,7 +41,7 @@ class AEVBSamplerSpec extends FlatSpec {
   }
 
   it should "reconstruct normal sample parameters" in {
-    val variable = Normal[Id, Any](1.0, 2.0).sample
+    val variable = Normal(1.0, 2.0).sample
     val logp = variable.logp()
 
     val sampler = new AEVBSampler[Id, Any](variable, 0.0, 0.5)
