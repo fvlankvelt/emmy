@@ -48,7 +48,7 @@ class AEVBModelSpec extends FlatSpec {
     assert(abs(sampler.mu - 0.2) < 0.05)
   }
 
-  def printVariable[U[_], V, S](model: AEVBModel, name: String, variable: Variable[U, S]): Unit = {
+  def printVariable[U[_], V, S](model: AEVBModel, name: String, variable: ContinuousVariable[U, S]): Unit = {
     val dist = model.distributionOf(variable)
     println(s"$name: mu = ${dist._1}, sigma = ${dist._2}")
   }

@@ -1,7 +1,7 @@
 package emmy.inference
 
 import emmy.autodiff.ContainerOps.Aux
-import emmy.autodiff.{Expression, GradientContext, Variable}
+import emmy.autodiff.{ContinuousVariable, Expression, GradientContext, Variable}
 
 import scala.collection.mutable
 
@@ -12,7 +12,7 @@ class ModelGradientContext(model: Model) extends GradientContext {
 
   override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] =
     n match {
-      case v: Variable[U, S] =>
+      case v: ContinuousVariable[U, S] =>
         cache.getOrElseUpdate(n, modelSample.getSampleValue[U, S](v))
           .asInstanceOf[U[V]]
       case _ =>
@@ -20,7 +20,7 @@ class ModelGradientContext(model: Model) extends GradientContext {
           .asInstanceOf[U[V]]
     }
 
-  override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
+  override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
     n.grad(this, v)
   }
 }

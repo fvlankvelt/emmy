@@ -23,7 +23,7 @@ case class LiftedContainer[U[_], V, S](value: U[Expression[Id, V, Any]])
     * highly inefficient implementation of grad
     * Turns U[W[Double]] into W[U[Double]] by doing a double loop on U.
     */
-  override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U] = {
+  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U] = {
     val grads = ops.map(value)(gc(_, v))
     val valT = vt(gc)
     val valWT = v.vt(gc)

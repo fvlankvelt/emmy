@@ -1,6 +1,6 @@
 package emmy.inference
 
-import emmy.autodiff.{EvaluationContext, Expression, Node, Variable}
+import emmy.autodiff.{ContinuousVariable, EvaluationContext, Expression, Node, Variable}
 
 import scala.collection.mutable
 
@@ -14,7 +14,7 @@ trait ModelEvaluationContext
 
   override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] =
     n match {
-      case v: Variable[U, S] if !newVariables.contains(v) =>
+      case v: ContinuousVariable[U, S] if !newVariables.contains(v) =>
         cache.getOrElseUpdate(n, modelSample.getSampleValue[U, S](v))
           .asInstanceOf[U[V]]
       case _ =>

@@ -1,7 +1,5 @@
 package emmy
 
-import emmy.autodiff.ContainerOps.Aux
-
 import scalaz.Scalaz.Id
 
 package object autodiff {
@@ -96,7 +94,7 @@ package object autodiff {
 
   trait GradientContext extends EvaluationContext {
 
-    def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[Double]]
+    def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[Double]]
   }
 
   object log extends UnaryNodeFunc {

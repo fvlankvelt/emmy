@@ -1,6 +1,6 @@
 package emmy.inference
 
-import emmy.autodiff.{EvaluationContext, Expression, Node, Variable}
+import emmy.autodiff.{ContinuousVariable, EvaluationContext, Expression, Node, Variable}
 import emmy.distribution.Observation
 
 import scala.annotation.tailrec
@@ -10,7 +10,7 @@ import scalaz.Scalaz.Id
 class AEVBSamplersModel(globalVars: Map[Node, Any]) extends Model {
 
   override def sample(ec: EvaluationContext) = new ModelSample {
-    override def getSampleValue[U[_], S](n: Variable[U, S]) =
+    override def getSampleValue[U[_], S](n: ContinuousVariable[U, S]) =
       globalVars(n).asInstanceOf[AEVBSampler[U, S]].sample(ec)
   }
 
@@ -90,7 +90,7 @@ class AEVBModel private[AEVBModel](
     )
   }
 
-  def distributionOf[U[_], S](variable: Variable[U, S]): (U[Double], U[Double]) = {
+  def distributionOf[U[_], S](variable: ContinuousVariable[U, S]): (U[Double], U[Double]) = {
     val sampler = globalVars(variable).asInstanceOf[AEVBSampler[U, S]]
     (sampler.mu, sampler.sigma)
   }
@@ -111,7 +111,7 @@ object AEVBModel {
 
     val globalSamplers = initialize(builders, (ec: EvaluationContext) => {
       new ModelSample {
-        override def getSampleValue[U[_], S](n: Variable[U, S]): U[Double] =
+        override def getSampleValue[U[_], S](n: ContinuousVariable[U, S]): U[Double] =
           throw new UnsupportedOperationException("Global priors cannot be initialized with dependencies on variables")
       }
     })
@@ -155,7 +155,7 @@ object AEVBModel {
             (curvis, curvars, curlogp)
           case o: Observation[W forSome {type W[_]}, _, _] =>
             collectVars(curvis + p, curvars, curlogp + o.logp(), p.parents)
-          case v: Variable[W forSome {type W[_]}, _] =>
+          case v: ContinuousVariable[W forSome {type W[_]}, _] =>
             collectVars(curvis + p, curvars + AEVBSamplerBuilder(v), curlogp + v.logp(), p.parents)
           case _ =>
             collectVars(curvis + p, curvars, curlogp, p.parents)

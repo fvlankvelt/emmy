@@ -25,7 +25,7 @@ case class Normal[U[_], S](mu: Expression[U, Double, S],
                               ops: ContainerOps.Aux[U, S])
   extends Distribution[U, Double, S] {
 
-  override def sample: Variable[U, S] =
+  override def sample: ContinuousVariable[U, S] =
     new NormalSample(mu, sigma)
 
   override def observe(data: U[Double]): Observation[U, Double, S] =
@@ -35,7 +35,7 @@ case class Normal[U[_], S](mu: Expression[U, Double, S],
                                      val sigma: Expression[U, Double, S])
                                     (implicit
                                      val ops: ContainerOps.Aux[U, S])
-    extends Variable[U, S] with NormalStochast[U, S] {
+    extends ContinuousVariable[U, S] with NormalStochast[U, S] {
 
     override val vt = mu.vt
 

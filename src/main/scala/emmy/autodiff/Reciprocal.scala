@@ -13,7 +13,7 @@ case class Reciprocal[U[_], V, S](upstream: Expression[U, V, S])
     vt(ec).div(vt(ec).one, ec(upstream))
   }
 
-  override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val value = gc(upstream)
     val grad = gc(upstream, v)
     val valT = vt(gc)

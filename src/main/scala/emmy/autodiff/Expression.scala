@@ -48,7 +48,7 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
 
   def apply(ec: EvaluationContext): U[V]
 
-  def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U]
+  def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U]
 
   def unary_-(): Expression[U, V, S] =
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
@@ -84,7 +84,7 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
         ops.map(up)(valT.toDouble)
       }
 
-      override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: Aux[W, T]): Gradient[W, U] = {
+      override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): Gradient[W, U] = {
         self.grad(gc, v)
       }
     }

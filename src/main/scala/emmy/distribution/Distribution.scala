@@ -6,7 +6,7 @@ import scalaz.Scalaz.Id
 
 trait Distribution[U[_], V, S] {
 
-  def sample: Variable[U, S]
+  def sample: Variable[U, V, S]
 
   def observe(data: U[V]): Observation[U, V, S]
 }

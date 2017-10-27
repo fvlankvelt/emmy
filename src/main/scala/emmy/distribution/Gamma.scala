@@ -1,6 +1,6 @@
 package emmy.distribution
 
-import emmy.autodiff.{ContainerOps, Evaluable, EvaluationContext, Expression, ScalarOps, Variable, lgamma, log, sum}
+import emmy.autodiff.{ContainerOps, ContinuousVariable, Evaluable, EvaluationContext, Expression, ScalarOps, ValueOps, lgamma, log, sum}
 
 import scalaz.Scalaz.Id
 
@@ -35,9 +35,10 @@ case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, D
                                    val beta: Expression[U, Double, S])
                                   (implicit
                                    val ops: ContainerOps.Aux[U, S])
-    extends Variable[U, S] with GammaStochast[U, S] {
+    extends ContinuousVariable[U, S] with GammaStochast[U, S] {
 
-    override val vt = alpha.vt
+    override val vt: Evaluable[ValueOps[U, Double, S]] =
+      alpha.vt
 
     override val so: ScalarOps[U[Double], U[Double]] =
       ScalarOps.liftBoth[U, Double, Double](ScalarOps.doubleOps, ops)
@@ -61,7 +62,7 @@ case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, D
                                         val ops: ContainerOps.Aux[U, S])
     extends Observation[U, Double, S] with GammaStochast[U, S] {
 
-    override val vt =
+    override val vt: Evaluable[ValueOps[U, Double, S]] =
       alpha.vt
 
     override val so: ScalarOps[U[Double], U[Double]] =

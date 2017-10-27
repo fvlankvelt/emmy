@@ -1,6 +1,6 @@
 package emmy.inference
 
-import emmy.autodiff.{EvaluationContext, Variable}
+import emmy.autodiff.{ContinuousVariable, EvaluationContext}
 import emmy.distribution.Observation
 
 trait Model {
@@ -15,5 +15,5 @@ trait Model {
 
 trait ModelSample {
 
-  def getSampleValue[U[_], S](n: Variable[U, S]): U[Double]
+  def getSampleValue[U[_], S](n: ContinuousVariable[U, S]): U[Double]
 }

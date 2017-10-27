@@ -1,10 +1,10 @@
 package emmy.inference
 
-import emmy.autodiff.{Constant, Evaluable, EvaluationContext, Expression, GradientContext, ValueOps, Variable, log, sum}
+import emmy.autodiff.{Constant, ContinuousVariable, Evaluable, EvaluationContext, Expression, GradientContext, ValueOps, log, sum}
 
 import scalaz.Scalaz.Id
 
-class AEVBSampler[U[_], S](val variable: Variable[U, S],
+class AEVBSampler[U[_], S](val variable: ContinuousVariable[U, S],
                            val mu: U[Double],
                            val sigma: U[Double]) {
 

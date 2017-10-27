@@ -13,7 +13,7 @@ case class Multiply[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, 
     vt(ec).times(ec(lhs), ec(rhs))
   }
 
-  override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val lv = gc(lhs)
     val leftg = gc(lhs, v)
     val rv = gc(rhs)

@@ -3,12 +3,11 @@ package emmy.autodiff
 import emmy.distribution.Stochast
 
 
-trait Variable[U[_], S] extends Expression[U, Double, S] with Stochast {
+trait Variable[U[_], V, S] extends Expression[U, V, S] with Stochast
 
-//  override def apply(evaluationContext: EvaluationContext): U[V] =
-//    throw new UnsupportedOperationException("Evaluation context should provide value for variable")
+trait ContinuousVariable[U[_], S] extends Variable[U, Double, S] {
 
-  override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val shape = wOps.shapeOf(gc(v))
     val valT = vt(gc)
     if (this == v) {

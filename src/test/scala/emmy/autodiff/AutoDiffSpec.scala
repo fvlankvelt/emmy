@@ -17,12 +17,12 @@ class AutoDiffSpec extends FlatSpec {
     override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] = {
       n match {
         case v: TestVariable[U, S] => v.value.asInstanceOf[U[V]]
-        case v: Variable[U, S] => cache.getOrElseUpdate(v, v.vt(this).rnd).asInstanceOf[U[V]]
+        case v: ContinuousVariable[U, S] => cache.getOrElseUpdate(v, v.vt(this).rnd).asInstanceOf[U[V]]
         case _ => n.apply(this)
       }
     }
 
-    override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: Variable[W, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
+    override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
       n.grad(this, v)
     }
   }

@@ -14,7 +14,7 @@ case class Add[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, S])
     valT.plus(ec(lhs), ec(rhs))
   }
 
-  override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val valT = vt(gc)
     val ring = valT.forDouble
     wOps.zipMap(gc(lhs, v), gc(rhs, v)) {

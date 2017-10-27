@@ -1,10 +1,10 @@
 package emmy.inference
 
-import emmy.autodiff.{EvaluationContext, ValueOps, Variable}
+import emmy.autodiff.{ContinuousVariable, EvaluationContext, ValueOps, Variable}
 
 import scala.collection.mutable
 
-case class AEVBSamplerBuilder[U[_], S](variable: Variable[U, S]) {
+case class AEVBSamplerBuilder[U[_], S](variable: ContinuousVariable[U, S]) {
   private val samples: mutable.Buffer[U[Double]] = mutable.Buffer.empty
   private var numUVOpt: Option[ValueOps[U, Double, S]] = None
 

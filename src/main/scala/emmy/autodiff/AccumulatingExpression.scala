@@ -30,7 +30,7 @@ case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U
 
   // ug = (x1', x2', x3')
 
-  override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit  wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit  wOps: ContainerOps.Aux[W, T]) = {
     implicit val sod = so
     val ug = gc(up, v)
     val valT = vt(gc)

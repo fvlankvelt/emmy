@@ -16,7 +16,7 @@ case class UnaryExpression[U[_], V, S](up: Expression[U, V, S], rf: EvaluableVal
     ops.map(value)(v => rf.apply(ec, v))
   }
 
-  override def grad[W[_], T](gc: GradientContext, v: Variable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     val opsW = implicitly[ContainerOps[W]]
     val ug = gc(up, v)
     opsW.map(ug) { g =>
