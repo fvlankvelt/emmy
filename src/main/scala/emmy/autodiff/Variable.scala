@@ -3,7 +3,7 @@ package emmy.autodiff
 import emmy.distribution.Stochast
 
 
-trait Variable[U[_], V, S] extends Expression[U, V, S] with Stochast
+sealed trait Variable[U[_], V, S] extends Expression[U, V, S] with Stochast
 
 trait ContinuousVariable[U[_], S] extends Variable[U, Double, S] {
 
@@ -18,3 +18,12 @@ trait ContinuousVariable[U[_], S] extends Variable[U, Double, S] {
   }
 }
 
+trait IntegerVariable[U[_], S] extends Variable[U, Int, S] {
+
+  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
+    val ops = implicitly[ContainerOps[W]]
+    val shape = ops.shapeOf(gc(v))
+    ops.fill(shape, vt(gc).forDouble.zero)
+  }
+
+}

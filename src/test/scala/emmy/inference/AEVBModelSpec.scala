@@ -1,8 +1,9 @@
 package emmy.inference
 
+import breeze.linalg.DenseVector
 import breeze.numerics.abs
 import emmy.autodiff._
-import emmy.distribution.{Multinomial, Normal}
+import emmy.distribution.{Categorical, Normal}
 import org.scalatest.FlatSpec
 
 import scala.util.Random
@@ -92,24 +93,29 @@ class AEVBModelSpec extends FlatSpec {
 
   }
 
-  it should "do multinomial regression" in {
-    val data = {
+  it should "do categorical regression" in {
+    val data = () => {
       val x = 1.5
-      val dist = breeze.stats.distributions.Binomial(20, 1.0 / (1.0 + math.exp(x)))
-      dist.sample(100).toList.map { n => List(n, 20 - n) }
+      val p = 1.0 / (1.0 + math.exp(x))
+      val vec : DenseVector[Double] = DenseVector(p, 1.0 - p)
+      val dist = breeze.stats.distributions.Multinomial(vec)
+      dist.sample(100).toList
     }
     val testvar = Normal(0.0, 1.0).sample
-    val p = 1.0 / (1.0 + exp(testvar))
-    val multi = Multinomial[List, Int](List(p, 1.0 - p), 20)
-    val observations = data.map { values => multi.observe(values) }
+    val pvar = 1.0 / (1.0 + exp(testvar))
+    val multi = Categorical(Vector(pvar, 1.0 - pvar))
 
-    val model = AEVBModel(Seq[Node](testvar))
+    var model = AEVBModel(Seq[Node](testvar))
     println("Prior model:")
     printVariable(model, "testvar", testvar)
 
-    val newModel = model.update(observations)
+    for { _ <- 0 until 10 } {
+      val observations = data().map { values => multi.observe(values) }
+      val newModel = model.update(observations)
+      model = newModel
+    }
     println("Posterior model:")
-    printVariable(newModel, "testvar", testvar)
+    printVariable(model, "testvar", testvar)
   }
 
 }
