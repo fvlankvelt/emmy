@@ -108,7 +108,7 @@ class AutoDiffSpec extends FlatSpec {
         val s = a + sum(x * b)
         Normal(s, e).observe(y)
     }
-    val logp = observations.map(_.logp()).sum +
+    val logp = sum(observations.map(_.logp())) +
       a.logp() + b.logp() + e.logp()
     println(logp(ec))
 

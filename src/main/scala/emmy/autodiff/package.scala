@@ -117,33 +117,6 @@ package object autodiff {
     implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.sum)
   }
 
-  implicit def nodeNumeric[U[_], V, S](implicit
-                                       fl: Floating[V],
-                                       so: ScalarOps[U[Double], U[V]],
-                                       cOps: ContainerOps.Aux[U, S]): Numeric[Expression[U, V, S]] =
-    new Numeric[Expression[U, V, S]] {
-
-      override def plus(x: Expression[U, V, S], y: Expression[U, V, S]) = x + y
-
-      override def minus(x: Expression[U, V, S], y: Expression[U, V, S]) = x - y
-
-      override def times(x: Expression[U, V, S], y: Expression[U, V, S]) = x * y
-
-      override def negate(x: Expression[U, V, S]) = -x
-
-      override def fromInt(x: Int) = Constant(cOps.lift(fl.fromInt(x)))
-
-      override def toInt(x: Expression[U, V, S]) = ???
-
-      override def toLong(x: Expression[U, V, S]) = ???
-
-      override def toFloat(x: Expression[U, V, S]) = ???
-
-      override def toDouble(x: Expression[U, V, S]) = ???
-
-      override def compare(x: Expression[U, V, S], y: Expression[U, V, S]) = ???
-    }
-
   implicit def toNode[U[_], V, S](value: U[V])
                                  (implicit
                                   fl: Floating[V],
