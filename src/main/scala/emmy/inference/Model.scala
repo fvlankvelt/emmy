@@ -1,6 +1,6 @@
 package emmy.inference
 
-import emmy.autodiff.{ContinuousVariable, EvaluationContext}
+import emmy.autodiff.{ ContinuousVariable, EvaluationContext }
 import emmy.distribution.Observation
 
 trait Model {

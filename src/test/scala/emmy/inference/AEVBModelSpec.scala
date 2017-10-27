@@ -3,7 +3,7 @@ package emmy.inference
 import breeze.linalg.DenseVector
 import breeze.numerics.abs
 import emmy.autodiff._
-import emmy.distribution.{Categorical, Normal}
+import emmy.distribution.{ Categorical, Normal }
 import org.scalatest.FlatSpec
 
 import scala.util.Random
@@ -18,12 +18,12 @@ class AEVBModelSpec extends FlatSpec {
     val dist = Normal(mu, 0.2)
 
     val finalModel = (0 until 100).foldLeft(initialModel) {
-      case (model, _) =>
-        val data = for {_ <- 0 until 100} yield {
+      case (model, _) ⇒
+        val data = for { _ ← 0 until 100 } yield {
           0.3 + Random.nextGaussian() * 0.2
         }
 
-        val observations = data.map { d => dist.observe(d) }
+        val observations = data.map { d ⇒ dist.observe(d) }
         model.update(observations)
     }
     val sampler = finalModel.getSampler[Id, Double, Any](mu)
@@ -37,12 +37,12 @@ class AEVBModelSpec extends FlatSpec {
     val dist = Normal(0.3, exp(logSigma))
 
     val finalModel = (0 until 100).foldLeft(initialModel) {
-      case (model, _) =>
-        val data = for {_ <- 0 until 100} yield {
+      case (model, _) ⇒
+        val data = for { _ ← 0 until 100 } yield {
           0.3 + Random.nextGaussian() * scala.math.exp(0.2)
         }
 
-        val observations = data.map { d => dist.observe(d) }
+        val observations = data.map { d ⇒ dist.observe(d) }
         model.update(observations)
     }
     val sampler = finalModel.getSampler[Id, Double, Any](logSigma)
@@ -61,7 +61,7 @@ class AEVBModelSpec extends FlatSpec {
       val sigma = 1.0
       val beta = List(1.0, 2.5)
 
-      (for {_ <- 0 until 200} yield {
+      (for { _ ← 0 until 200 } yield {
         val X = List(Random.nextGaussian(), 0.2 * Random.nextGaussian())
         val Y = alpha + X(0) * beta(0) + X(1) * beta(1) + Random.nextGaussian() * sigma
         (X, Y)
@@ -81,7 +81,7 @@ class AEVBModelSpec extends FlatSpec {
 
     // infer parameter values from observations
     val observations = data.map {
-      case (x, y) =>
+      case (x, y) ⇒
         val s = a + sum(x * b)
         Normal(s, e).observe(y)
     }
@@ -94,10 +94,10 @@ class AEVBModelSpec extends FlatSpec {
   }
 
   it should "do categorical regression" in {
-    val data = () => {
+    val data = () ⇒ {
       val x = 1.5
       val p = 1.0 / (1.0 + math.exp(x))
-      val vec : DenseVector[Double] = DenseVector(p, 1.0 - p)
+      val vec: DenseVector[Double] = DenseVector(p, 1.0 - p)
       val dist = breeze.stats.distributions.Multinomial(vec)
       dist.sample(100).toList
     }
@@ -109,8 +109,8 @@ class AEVBModelSpec extends FlatSpec {
     println("Prior model:")
     printVariable(model, "testvar", testvar)
 
-    for { _ <- 0 until 10 } {
-      val observations = data().map { values => multi.observe(values) }
+    for { _ ← 0 until 10 } {
+      val observations = data().map { values ⇒ multi.observe(values) }
       val newModel = model.update(observations)
       model = newModel
     }

@@ -2,8 +2,53 @@ package emmy.autodiff
 
 import scalaz.Scalaz.Id
 
-case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U, V, S], rf: CollectValueFunc[V])
-                                                               (implicit fl: Floating[V], val so: ScalarOps[Double, V])
+trait CollectValueFunc[V] extends ((V, V) ⇒ V) {
+
+  def name: String
+
+  def start: V
+
+  // gradient of the accumulator to v at a
+  def grad(a: V, v: V): V
+}
+
+trait CollectNodeFunc {
+
+  def apply[U[_], V, S](node: Expression[U, V, S])(implicit
+    fl: Floating[V],
+                                                   so:   ScalarOps[Double, V],
+                                                   ops:  ContainerOps[U],
+                                                   impl: Impl[V]
+  ): Expression[Id, V, Any] =
+    AccumulatingExpression(node, impl)
+
+  def wrapFunc[V](fn: CollectValueFunc[V]): Impl[V] = new Impl[V] {
+
+    override def name: String = fn.name
+
+    override def apply(acc: V, v: V) = fn.apply(acc, v)
+
+    override def start = fn.start
+
+    override def grad(acc: V, v: V) = fn.grad(acc, v)
+  }
+
+  trait Impl[V] extends CollectValueFunc[V]
+
+}
+
+object sum extends CollectNodeFunc {
+
+  implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.sum)
+}
+
+case class AccumulatingExpression[U[_]: ContainerOps, V, S, A](
+    up: Expression[U, V, S],
+    rf: CollectValueFunc[V]
+)(implicit
+    fl: Floating[V],
+  val so: ScalarOps[Double, V]
+)
   extends Expression[Id, V, Any] {
 
   override val ops = ContainerOps.idOps
@@ -30,15 +75,15 @@ case class AccumulatingExpression[U[_] : ContainerOps, V, S, A](up: Expression[U
 
   // ug = (x1', x2', x3')
 
-  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit  wOps: ContainerOps.Aux[W, T]) = {
+  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
     implicit val sod = so
     val ug = gc(up, v)
     val valT = vt(gc)
     val valD = valT.forDouble
-    val result = wOps.map(ug) { g =>
+    val result = wOps.map(ug) { g ⇒
       val vg = opsU.zipMap(gc(up), g)((_, _))
       opsU.foldLeft(vg)((rf.start, valD.zero)) {
-        (acc, x) =>
+        (acc, x) ⇒
           val (av, ag) = acc
           val (xv, xg) = x
           (

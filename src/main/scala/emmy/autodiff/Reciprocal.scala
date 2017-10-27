@@ -1,10 +1,12 @@
 package emmy.autodiff
 
-case class Reciprocal[U[_], V, S](upstream: Expression[U, V, S])
-                                 (implicit
-                                  val vt: Evaluable[ValueOps[U, V, S]],
-                                  val so: ScalarOps[U[Double], U[V]],
-                                  val ops: ContainerOps.Aux[U, S])
+case class Reciprocal[U[_], V, S](
+    upstream: Expression[U, V, S]
+)(implicit
+    val vt: Evaluable[ValueOps[U, V, S]],
+  val so:  ScalarOps[U[Double], U[V]],
+  val ops: ContainerOps.Aux[U, S]
+)
   extends Expression[U, V, S] {
 
   override val parents = Seq(upstream)
@@ -18,7 +20,7 @@ case class Reciprocal[U[_], V, S](upstream: Expression[U, V, S])
     val grad = gc(upstream, v)
     val valT = vt(gc)
     val valD = valT.forDouble
-    wOps.map(grad) { g =>
+    wOps.map(grad) { g ⇒
       valD.negate(so.div(g, valT.times(value, value)))
     }
   }

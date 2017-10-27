@@ -1,12 +1,10 @@
 package emmy
 
-import emmy.autodiff.{ContainerOps, ContinuousVariable, Evaluable, EvaluationContext, Floating, ScalarOps, ValueOps}
+import emmy.autodiff.{ ContainerOps, ContinuousVariable, Evaluable, EvaluationContext, Floating, ScalarOps, ValueOps }
 
 import scalaz.Scalaz.Id
 
-case class TestVariable[U[_], S](value: U[Double])
-                                (implicit
-                                 val ops: ContainerOps.Aux[U, S])
+case class TestVariable[U[_], S](value: U[Double])(implicit val ops: ContainerOps.Aux[U, S])
   extends ContinuousVariable[U, S] {
 
   override def apply(ec: EvaluationContext) = value

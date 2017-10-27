@@ -1,11 +1,11 @@
 package emmy.distribution
 
-import emmy.autodiff.{ContainerOps, ContinuousVariable, Evaluable, EvaluationContext, Expression, ScalarOps, ValueOps, lgamma, log, sum}
+import emmy.autodiff.{ ContainerOps, ContinuousVariable, Evaluable, EvaluationContext, Expression, ScalarOps, ValueOps, lgamma, log, sum }
 
 import scalaz.Scalaz.Id
 
 trait GammaStochast[U[_], S] extends Stochast {
-  self: Expression[U, Double, S] =>
+  self: Expression[U, Double, S] ⇒
 
   def alpha: Expression[U, Double, S]
 
@@ -18,9 +18,7 @@ trait GammaStochast[U[_], S] extends Stochast {
   }
 }
 
-case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, Double, S])
-                            (implicit
-                             ops: ContainerOps.Aux[U, S])
+case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, Double, S])(implicit ops: ContainerOps.Aux[U, S])
   extends Distribution[U, Double, S] {
 
   //  assert(alpha.shape == beta.shape)
@@ -31,10 +29,10 @@ case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, D
   override def observe(data: U[Double]) =
     new GammaObservation(alpha, beta, data)
 
-  class GammaSample private[Gamma](val alpha: Expression[U, Double, S],
-                                   val beta: Expression[U, Double, S])
-                                  (implicit
-                                   val ops: ContainerOps.Aux[U, S])
+  class GammaSample private[Gamma] (
+      val alpha: Expression[U, Double, S],
+      val beta:  Expression[U, Double, S]
+  )(implicit val ops: ContainerOps.Aux[U, S])
     extends ContinuousVariable[U, S] with GammaStochast[U, S] {
 
     override val vt: Evaluable[ValueOps[U, Double, S]] =
@@ -47,7 +45,7 @@ case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, D
       val alphaV = ec(alpha)
       val betaV = ec(beta)
       ops.zipMap(alphaV, betaV) {
-        (a, b) =>
+        (a, b) ⇒
           val valueVT = vt(ec).valueVT
           val g = breeze.stats.distributions.Gamma(valueVT.toDouble(a), 1.0 / valueVT.toDouble(b))
           g.draw()
@@ -55,11 +53,11 @@ case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, D
     }
   }
 
-  class GammaObservation private[Gamma](val alpha: Expression[U, Double, S],
-                                        val beta: Expression[U, Double, S],
-                                        val value: Evaluable[U[Double]])
-                                       (implicit
-                                        val ops: ContainerOps.Aux[U, S])
+  class GammaObservation private[Gamma] (
+      val alpha: Expression[U, Double, S],
+      val beta:  Expression[U, Double, S],
+      val value: Evaluable[U[Double]]
+  )(implicit val ops: ContainerOps.Aux[U, S])
     extends Observation[U, Double, S] with GammaStochast[U, S] {
 
     override val vt: Evaluable[ValueOps[U, Double, S]] =

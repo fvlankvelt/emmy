@@ -1,29 +1,40 @@
 package emmy.inference
 
-import emmy.autodiff.{Constant, ContinuousVariable, Evaluable, EvaluationContext, Expression, GradientContext, ValueOps, log, sum}
+import emmy.autodiff.{ Constant, ContinuousVariable, Evaluable, EvaluationContext, Expression, GradientContext, Node, ValueOps, log, sum }
 
 import scalaz.Scalaz.Id
 
-class AEVBSampler[U[_], S](val variable: ContinuousVariable[U, S],
-                           val mu: U[Double],
-                           val sigma: U[Double]) {
+trait Sampler {
+
+  def variable: Node
+
+  def update(logP: Expression[Id, Double, Any], gc: GradientContext, rho: Double): (Sampler, Double)
+
+  def logp(): Expression[Id, Double, Any]
+}
+
+class AEVBSampler[U[_], S](
+    val variable: ContinuousVariable[U, S],
+    val mu:       U[Double],
+    val sigma:    U[Double]
+) extends Sampler {
 
   // @formatter:off
   /**
-    * Update (\mu, \sigma) by taking a natural gradient step of size \rho.
-    * The value is decomposed as \value = \mu + \epsilon * \sigma.
-    * Updates are
-    *
-    *     \mu' = (1 - \rho) * \mu    +
-    *              \rho * \sigma**2 * (\gradP - \gradQ)
-    *
-    *  \sigma' = (1 - \rho) * \sigma +
-    *              \rho * (\sigma**2 / 2) * \epsilon * (\gradP - \gradQ)
-    *
-    * The factors \sigma**2 and \sigma**2/2, respectively, are due to
-    * the conversion to natural gradient.  The \epsilon factor is
-    * the jacobian d\theta/d\sigma.  (similar factor for \mu is 1)
-    */
+   * Update (\mu, \sigma) by taking a natural gradient step of size \rho.
+   * The value is decomposed as \value = \mu + \epsilon * \sigma.
+   * Updates are
+   *
+   *     \mu' = (1 - \rho) * \mu    +
+   *              \rho * \sigma**2 * (\gradP - \gradQ)
+   *
+   *  \sigma' = (1 - \rho) * \sigma +
+   *              \rho * (\sigma**2 / 2) * \epsilon * (\gradP - \gradQ)
+   *
+   * The factors \sigma**2 and \sigma**2/2, respectively, are due to
+   * the conversion to natural gradient.  The \epsilon factor is
+   * the jacobian d\theta/d\sigma.  (similar factor for \mu is 1)
+   */
   // @formatter:on
   def update(logP: Expression[Id, Double, Any], gc: GradientContext, rho: Double): (AEVBSampler[U, S], Double) = {
     val vt = variable.vt(gc)

@@ -1,17 +1,29 @@
 package emmy.autodiff
 import emmy.autodiff.ContainerOps.Aux
+import emmy.distribution.Observation
+
+trait Visitor[R] {
+
+  def visitObservation[U[_], V, S](o: Observation[U, V, S]): R
+
+  def visitVariable[U[_], V, S](v: ContinuousVariable[U, S]): R
+
+  def visitNode(n: Node): R
+}
 
 trait Node {
+
+  def visit[R](visitor: Visitor[R]): R
 
   def parents: Seq[Node] = Seq.empty
 }
 
 trait Evaluable[+V] {
-  self =>
+  self ⇒
 
   def apply(ec: EvaluationContext): V
 
-  def map[W](fn: V => W): Evaluable[W] = new Evaluable[W] {
+  def map[W](fn: V ⇒ W): Evaluable[W] = new Evaluable[W] {
 
     override def apply(ec: EvaluationContext): W = {
       fn(self(ec))
@@ -36,6 +48,16 @@ object Evaluable {
   }
 }
 
+trait EvaluationContext {
+
+  def apply[U[_], V, S](n: Expression[U, V, S]): U[V]
+}
+
+trait GradientContext extends EvaluationContext {
+
+  def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[Double]]
+}
+
 trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
 
   type Shape = S
@@ -45,6 +67,10 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
   implicit val so: ScalarOps[U[Double], U[V]]
 
   implicit def vt: Evaluable[ValueOps[U, V, S]]
+
+  def visit[R](visitor: Visitor[R]) = {
+    visitor.visitNode(this)
+  }
 
   def apply(ec: EvaluationContext): U[V]
 
@@ -72,7 +98,7 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
       override implicit val ops: Aux[U, Shape] = self.ops
 
       override implicit def vt: Evaluable[ValueOps[U, Double, S]] =
-        self.vt.map { up =>
+        self.vt.map { up ⇒
           ValueOps(Floating.doubleFloating, ops, up.shape)
         }
 

@@ -1,10 +1,13 @@
 package emmy.autodiff
 
-case class Add[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, S])
-                          (implicit
-                           val vt: Evaluable[ValueOps[U, V, S]],
-                           val so: ScalarOps[U[Double], U[V]],
-                           val ops: ContainerOps.Aux[U, S])
+case class Add[U[_], V, S](
+    lhs: Expression[U, V, S],
+    rhs: Expression[U, V, S]
+)(implicit
+    val vt: Evaluable[ValueOps[U, V, S]],
+  val so:  ScalarOps[U[Double], U[V]],
+  val ops: ContainerOps.Aux[U, S]
+)
   extends Expression[U, V, S] {
 
   override val parents = Seq(lhs, rhs)
@@ -18,7 +21,7 @@ case class Add[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, S])
     val valT = vt(gc)
     val ring = valT.forDouble
     wOps.zipMap(gc(lhs, v), gc(rhs, v)) {
-      (lg, rg) => ring.plus(lg, rg)
+      (lg, rg) ⇒ ring.plus(lg, rg)
     }
   }
 

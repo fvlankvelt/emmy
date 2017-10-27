@@ -6,19 +6,18 @@ import emmy.distribution.Normal
 import org.scalatest.FlatSpec
 
 import scala.collection.mutable
-import scalaz.Scalaz._
 
 class AutoDiffSpec extends FlatSpec {
 
-  val gc = new GradientContext {
+  private val gc = new GradientContext {
 
     private val cache = mutable.HashMap[AnyRef, Any]()
 
     override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] = {
       n match {
-        case v: TestVariable[U, S] => v.value.asInstanceOf[U[V]]
-        case v: ContinuousVariable[U, S] => cache.getOrElseUpdate(v, v.vt(this).rnd).asInstanceOf[U[V]]
-        case _ => n.apply(this)
+        case v: TestVariable[U, S]       ⇒ v.value.asInstanceOf[U[V]]
+        case v: ContinuousVariable[U, S] ⇒ cache.getOrElseUpdate(v, v.vt(this).rnd).asInstanceOf[U[V]]
+        case _                           ⇒ n.apply(this)
       }
     }
 
@@ -27,8 +26,7 @@ class AutoDiffSpec extends FlatSpec {
     }
   }
 
-  val ec: EvaluationContext = gc
-
+  private val ec: EvaluationContext = gc
 
   "AD" should "calculate scalar derivative" in {
     val x = TestVariable(2.0)
@@ -104,7 +102,7 @@ class AutoDiffSpec extends FlatSpec {
     )
 
     val observations = data.map {
-      case (x, y) =>
+      case (x, y) ⇒
         val s = a + sum(x * b)
         Normal(s, e).observe(y)
     }

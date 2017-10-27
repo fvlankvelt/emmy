@@ -10,14 +10,14 @@ import scalaz.Scalaz.Id
 
 class AEVBSamplerSpec extends FlatSpec {
 
-  "The AEVB sampler" should "determine \\mu close to the exact solution" in  {
+  "The AEVB sampler" should "determine \\mu close to the exact solution" in {
 
     val variable = TestVariable(0.0)
     val logp = -(variable - 1.0) * (variable - 1.0) / 2.0
 
     val sampler = new AEVBSampler[Id, Any](variable, 0.0, 1.0)
     val newSampler = (0 until 200).foldLeft(sampler) {
-      case (s, _) =>
+      case (s, _) ⇒
         val model = new AEVBSamplersModel(Map((variable: Node) -> s))
         val gc = new ModelGradientContext(model)
         s.update(logp, gc, 1.0)._1
@@ -32,7 +32,7 @@ class AEVBSamplerSpec extends FlatSpec {
 
     val sampler = new AEVBSampler[Id, Any](variable, 0.0, 0.5)
     val newSampler = (0 until 400).foldLeft(sampler) {
-      case (s, _) =>
+      case (s, _) ⇒
         val model = new AEVBSamplersModel(Map((variable: Node) -> s))
         val gc = new ModelGradientContext(model)
         s.update(logp, gc, 1.0)._1
@@ -46,7 +46,7 @@ class AEVBSamplerSpec extends FlatSpec {
 
     val sampler = new AEVBSampler[Id, Any](variable, 0.0, 0.5)
     val newSampler = (0 until 200).foldLeft(sampler) {
-      case (s, _) =>
+      case (s, _) ⇒
         val model = new AEVBSamplersModel(Map((variable: Node) -> s))
         val gc = new ModelGradientContext(model)
         s.update(logp, gc, 1.0)._1

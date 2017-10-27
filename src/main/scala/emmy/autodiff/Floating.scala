@@ -2,7 +2,6 @@ package emmy.autodiff
 
 import scala.util.Random
 
-
 trait Floating[V] extends Fractional[V] {
 
   def sqrt: UnaryValueFunc[V]

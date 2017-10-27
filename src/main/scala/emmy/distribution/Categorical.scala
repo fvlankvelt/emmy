@@ -9,7 +9,7 @@ import scalaz.Scalaz.Id
 
 trait CategoricalStochast
   extends Stochast
-    with Expression[Id, Int, Any] {
+  with Expression[Id, Int, Any] {
 
   def thetas: Expression[IndexedSeq, Double, Int]
 
@@ -44,7 +44,7 @@ trait CategoricalStochast
         val theta = thetav(index)
         val thetaSum = thetav.sum
         val g = gc(thetas, v)
-        wOps.map(g) { ug =>
+        wOps.map(g) { ug ⇒
           ug(index) / theta - ug.sum / thetaSum
         }
       }
@@ -52,9 +52,7 @@ trait CategoricalStochast
   }
 }
 
-case class Categorical(thetas: Expression[IndexedSeq, Double, Int])
-                      (implicit
-                       ops: ContainerOps.Aux[Id, Any])
+case class Categorical(thetas: Expression[IndexedSeq, Double, Int])(implicit ops: ContainerOps.Aux[Id, Any])
   extends Distribution[Id, Int, Any] {
 
   override def sample =
@@ -63,16 +61,14 @@ case class Categorical(thetas: Expression[IndexedSeq, Double, Int])
   override def observe(data: Int): Observation[Id, Int, Any] =
     new CategoricalObservation(thetas, data)
 
-  class CategoricalSample private[Categorical](val thetas: Expression[IndexedSeq, Double, Int])
-                                              (implicit
-                                               val ops: ContainerOps.Aux[Id, Any])
+  class CategoricalSample private[Categorical] (val thetas: Expression[IndexedSeq, Double, Int])(implicit val ops: ContainerOps.Aux[Id, Any])
     extends IntegerVariable[Id, Any] with CategoricalStochast {
 
     override def apply(ec: EvaluationContext): Int = {
       val thetasV = ec(thetas)
       val sumThetas = thetasV.sum
       var draw = Random.nextDouble() * sumThetas
-      for { (theta, idx) <- thetasV.zipWithIndex } {
+      for { (theta, idx) ← thetasV.zipWithIndex } {
         if (theta > draw)
           return idx
         draw -= theta
@@ -85,11 +81,10 @@ case class Categorical(thetas: Expression[IndexedSeq, Double, Int])
     }
   }
 
-
-  class CategoricalObservation private[Categorical](val thetas: Expression[IndexedSeq, Double, Int],
-                                                    val value: Evaluable[Int])
-                                                   (implicit
-                                                    val ops: ContainerOps.Aux[Id, Any])
+  class CategoricalObservation private[Categorical] (
+      val thetas: Expression[IndexedSeq, Double, Int],
+      val value:  Evaluable[Int]
+  )(implicit val ops: ContainerOps.Aux[Id, Any])
     extends Observation[Id, Int, Any] with CategoricalStochast {
 
     override def toString: String = {

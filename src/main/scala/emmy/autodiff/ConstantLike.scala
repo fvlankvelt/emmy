@@ -19,11 +19,11 @@ trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
   }
 }
 
-case class Constant[U[_], V, S](value: Evaluable[U[V]])
-                               (implicit
-                                val fl: Floating[V],
-                                val so: ScalarOps[U[Double], U[V]],
-                                val ops: ContainerOps.Aux[U, S])
+case class Constant[U[_], V, S](value: Evaluable[U[V]])(implicit
+    val fl: Floating[V],
+                                                        val so:  ScalarOps[U[Double], U[V]],
+                                                        val ops: ContainerOps.Aux[U, S]
+)
   extends ConstantLike[U, V, S] {
 
   override val vt = value.map(toVT)
@@ -36,11 +36,11 @@ case class Constant[U[_], V, S](value: Evaluable[U[V]])
 
 object Constant {
 
-  def apply[U[_], V, S](value: U[V])
-                       (implicit
-                        fl: Floating[V],
-                        so: ScalarOps[U[Double], U[V]],
-                        ops: ContainerOps.Aux[U, S]): Constant[U, V, S] =
+  def apply[U[_], V, S](value: U[V])(implicit
+    fl: Floating[V],
+                                     so:  ScalarOps[U[Double], U[V]],
+                                     ops: ContainerOps.Aux[U, S]
+  ): Constant[U, V, S] =
     Constant(Evaluable.fromConstant(value))
 
   def apply(value: Double): Constant[Id, Double, Any] = {

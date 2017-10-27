@@ -1,10 +1,13 @@
 package emmy.autodiff
 
-case class Multiply[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, S])
-                               (implicit
-                                val vt: Evaluable[ValueOps[U, V, S]],
-                                val so: ScalarOps[U[Double], U[V]],
-                                val ops: ContainerOps.Aux[U, S])
+case class Multiply[U[_], V, S](
+    lhs: Expression[U, V, S],
+    rhs: Expression[U, V, S]
+)(implicit
+    val vt: Evaluable[ValueOps[U, V, S]],
+  val so:  ScalarOps[U[Double], U[V]],
+  val ops: ContainerOps.Aux[U, S]
+)
   extends Expression[U, V, S] {
 
   override val parents = Seq(lhs, rhs)
@@ -20,7 +23,7 @@ case class Multiply[U[_], V, S](lhs: Expression[U, V, S], rhs: Expression[U, V, 
     val rightg = gc(rhs, v)
     val valT = vt(gc).forDouble
     wOps.zipMap(leftg, rightg) {
-      (lg, rg) =>
+      (lg, rg) ⇒
         valT.plus(
           so.times(lg, rv),
           so.times(rg, lv)

@@ -1,6 +1,6 @@
 package emmy.distribution
 
-import emmy.autodiff.{ConstantLike, Expression, Variable}
+import emmy.autodiff.{ ConstantLike, Expression, Variable, Visitor }
 
 import scalaz.Scalaz.Id
 
@@ -20,4 +20,10 @@ trait Stochast {
   def logp(): Expression[Id, Double, Any]
 }
 
-trait Observation[U[_], V, S] extends ConstantLike[U, V, S] with Stochast
+trait Observation[U[_], V, S] extends ConstantLike[U, V, S] with Stochast {
+
+  override def visit[R](visitor: Visitor[R]): R = {
+    visitor.visitObservation(this)
+  }
+
+}

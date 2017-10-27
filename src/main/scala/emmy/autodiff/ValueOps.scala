@@ -2,12 +2,11 @@ package emmy.autodiff
 
 import scalaz.Scalaz.Id
 
-
 case class ValueOps[U[_], V, Shape](
-                                     valueVT: Floating[V],
-                                     ops: ContainerOps.Aux[U, Shape],
-                                     shape: Shape
-                                   ) extends Floating[U[V]] {
+    valueVT: Floating[V],
+    ops:     ContainerOps.Aux[U, Shape],
+    shape:   Shape
+) extends Floating[U[V]] {
 
   def forDouble: ValueOps[U, Double, Shape] = ValueOps(Floating.doubleFloating, ops, shape)
 
@@ -76,7 +75,7 @@ case class ValueOps[U[_], V, Shape](
     override def start = null.asInstanceOf[U[V]]
 
     override def apply(acc: U[V], v: U[V]) = ops.zipMap(acc, v) {
-      (a, x) => upstream(if (a == null) upstream.start else a, x)
+      (a, x) ⇒ upstream(if (a == null) upstream.start else a, x)
     }
 
     override def grad(a: U[V], v: U[V]) = ops.zipMap(a, v)(upstream.grad)
