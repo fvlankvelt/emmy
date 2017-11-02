@@ -15,7 +15,7 @@ trait ModelEvaluationContext
   override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] =
     n match {
       case v: ContinuousVariable[U, S] if !newVariables.contains(v) ⇒
-        cache.getOrElseUpdate(n, modelSample.getSampleValue[U, S](v))
+        cache.getOrElseUpdate(n, modelSample.getSampleValue[U, Double, S](v))
           .asInstanceOf[U[V]]
       case _ ⇒
         cache.getOrElseUpdate(n, n.apply(this))

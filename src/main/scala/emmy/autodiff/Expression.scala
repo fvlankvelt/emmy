@@ -6,7 +6,9 @@ trait Visitor[R] {
 
   def visitObservation[U[_], V, S](o: Observation[U, V, S]): R
 
-  def visitVariable[U[_], V, S](v: ContinuousVariable[U, S]): R
+  def visitContinuousVariable[U[_], S](v: ContinuousVariable[U, S]): R
+
+  def visitCategoricalVariable(v: CategoricalVariable): R
 
   def visitNode(n: Node): R
 }
@@ -74,7 +76,11 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
 
   def apply(ec: EvaluationContext): U[V]
 
-  def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U]
+  def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U] = {
+    val ops = implicitly[ContainerOps[W]]
+    val shape = ops.shapeOf(gc(v))
+    ops.fill(shape, vt(gc).forDouble.zero)
+  }
 
   def unary_-(): Expression[U, V, S] =
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {

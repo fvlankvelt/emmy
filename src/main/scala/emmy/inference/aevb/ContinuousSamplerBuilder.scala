@@ -1,19 +1,11 @@
-package emmy.inference
+package emmy.inference.aevb
 
-import emmy.autodiff.{ ContinuousVariable, EvaluationContext, Node, ValueOps }
+import emmy.autodiff.{ ContinuousVariable, EvaluationContext, ValueOps }
+import emmy.inference.SamplerBuilder
 
 import scala.collection.mutable
 
-trait SamplerBuilder {
-
-  def variable: Node
-
-  def eval(ec: EvaluationContext): Unit
-
-  def build(): Sampler
-}
-
-case class AEVBSamplerBuilder[U[_], S](variable: ContinuousVariable[U, S]) extends SamplerBuilder {
+case class ContinuousSamplerBuilder[U[_], S](variable: ContinuousVariable[U, S]) extends SamplerBuilder {
   private val samples: mutable.Buffer[U[Double]] = mutable.Buffer.empty
   private var numUVOpt: Option[ValueOps[U, Double, S]] = None
 
@@ -27,7 +19,7 @@ case class AEVBSamplerBuilder[U[_], S](variable: ContinuousVariable[U, S]) exten
     }
   }
 
-  def build(): AEVBSampler[U, S] = {
+  def build(): ContinuousSampler[U, S] = {
     implicit val numUV = numUVOpt.get
     val size = samples.length
     val mu: U[Double] = numUV.div(samples.sum(numUV), numUV.fromInt(size))
@@ -37,6 +29,6 @@ case class AEVBSamplerBuilder[U[_], S](variable: ContinuousVariable[U, S]) exten
     }.sum(numUV)
     val ratio = numUV.div(sigma2, numUV.fromInt(size - 1))
     val sigma = numUV.sqrt(ratio)
-    new AEVBSampler(variable, mu, sigma)
+    new ContinuousSampler(variable, mu, sigma)
   }
 }

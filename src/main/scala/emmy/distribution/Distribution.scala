@@ -11,16 +11,12 @@ trait Distribution[U[_], V, S] {
   def observe(data: U[V]): Observation[U, V, S]
 }
 
-trait ValueDistribution[U[_], V, S] {
+trait Factor {
 
-  def sample: U[V]
-}
-
-trait Stochast {
   def logp(): Expression[Id, Double, Any]
 }
 
-trait Observation[U[_], V, S] extends ConstantLike[U, V, S] with Stochast {
+trait Observation[U[_], V, S] extends ConstantLike[U, V, S] with Factor {
 
   override def visit[R](visitor: Visitor[R]): R = {
     visitor.visitObservation(this)

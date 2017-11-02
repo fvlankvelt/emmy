@@ -1,29 +1,35 @@
-package emmy.inference
+package emmy.inference.aevb
 
-import emmy.autodiff.{ ContinuousVariable, EvaluationContext, Expression, Node, Visitor }
+import emmy.autodiff.{ CategoricalVariable, Constant, ContinuousVariable, EvaluationContext, Expression, Node, Variable, Visitor }
 import emmy.distribution.Observation
+import emmy.inference._
 
 import scala.annotation.tailrec
 import scalaz.Scalaz.Id
 
-class AEVBSamplersModel(globalVars: Map[Node, Any]) extends Model {
+class AEVBSamplersModel(globalVars: Map[Node, Sampler]) extends Model {
 
   override def sample(ec: EvaluationContext) = new ModelSample {
-    override def getSampleValue[U[_], S](n: ContinuousVariable[U, S]) =
-      globalVars(n).asInstanceOf[AEVBSampler[U, S]].sample(ec)
+    override def getSampleValue[U[_], V, S](n: Variable[U, V, S]) =
+      n match {
+        case _: ContinuousVariable[U, S] ⇒
+          globalVars(n).asInstanceOf[ContinuousSampler[U, S]].sample(ec).asInstanceOf[U[V]]
+        case v if v.isInstanceOf[CategoricalVariable] ⇒
+          globalVars(n).asInstanceOf[CategoricalSampler].sample(ec).asInstanceOf[U[V]]
+      }
   }
 
 }
 
 class AEVBModel private[AEVBModel] (
     nodes:      Set[Node],
-    globalVars: Map[Node, Any]
+    globalVars: Map[Node, Sampler]
 )
   extends AEVBSamplersModel(globalVars) {
 
   import AEVBModel._
 
-  def getSampler[U[_], V, S](node: Node) = globalVars(node).asInstanceOf[AEVBSampler[U, S]]
+  def getSampler[U[_], V, S](node: Node) = globalVars(node).asInstanceOf[ContinuousSampler[U, S]]
 
   override def update[U[_], V, S](observations: Seq[Observation[U, V, S]]) = {
 
@@ -31,7 +37,7 @@ class AEVBModel private[AEVBModel] (
     val (_, samplerBuilders, logp) = collectVars(
       nodes,
       Set.empty[SamplerBuilder],
-      0.0,
+      Constant(0.0),
       observations
     )
 
@@ -62,7 +68,7 @@ class AEVBModel private[AEVBModel] (
 
     @tailrec
     def iterate(iter: Int, samplers: Iterable[Sampler]): Iterable[Sampler] = {
-      val variables = samplers.map { s ⇒ (s.variable: Node) -> (s: Any) }.toMap
+      val variables = samplers.map { s ⇒ s.variable -> s }.toMap
       val rho = 1.0 / (iter + 10)
       val model = new AEVBSamplersModel(variables)
       val gc = new ModelGradientContext(model)
@@ -92,7 +98,7 @@ class AEVBModel private[AEVBModel] (
   }
 
   def distributionOf[U[_], S](variable: ContinuousVariable[U, S]): (U[Double], U[Double]) = {
-    val sampler = globalVars(variable).asInstanceOf[AEVBSampler[U, S]]
+    val sampler = globalVars(variable).asInstanceOf[ContinuousSampler[U, S]]
     (sampler.mu, sampler.sigma)
   }
 
@@ -112,7 +118,7 @@ object AEVBModel {
 
     val globalSamplers = initialize(builders, (ec: EvaluationContext) ⇒ {
       new ModelSample {
-        override def getSampleValue[U[_], S](n: ContinuousVariable[U, S]): U[Double] =
+        override def getSampleValue[U[_], V, S](n: Variable[U, V, S]): U[V] =
           throw new UnsupportedOperationException("Global priors cannot be initialized with dependencies on variables")
       }
     })
@@ -123,7 +129,7 @@ object AEVBModel {
   private[AEVBModel] def initialize(
     builders: Set[SamplerBuilder],
     prior:    EvaluationContext ⇒ ModelSample
-  ): Map[Node, Any] = {
+  ): Map[Node, Sampler] = {
     for { _ ← 0 until 100 } {
       val variables = builders.map {
         _.variable: Node
@@ -159,13 +165,18 @@ object AEVBModel {
               collectVars(curvis + p, curvars, curlogp + o.logp(), p.parents)
             }
 
-            override def visitVariable[U[_], V, S](v: ContinuousVariable[U, S]) = {
-              collectVars(curvis + p, curvars + AEVBSamplerBuilder(v), curlogp + v.logp(), p.parents)
+            override def visitContinuousVariable[U[_], S](v: ContinuousVariable[U, S]) = {
+              collectVars(curvis + p, curvars + ContinuousSamplerBuilder(v), curlogp + v.logp(), p.parents)
+            }
+
+            override def visitCategoricalVariable(v: CategoricalVariable) = {
+              collectVars(curvis + p, curvars + CategoricalSamplerBuilder(v), curlogp + v.logp(), p.parents)
             }
 
             override def visitNode(n: Node) = {
               collectVars(curvis + n, curvars, curlogp, n.parents)
             }
+
           })
         }
     }

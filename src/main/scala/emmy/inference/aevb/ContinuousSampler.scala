@@ -1,19 +1,11 @@
-package emmy.inference
+package emmy.inference.aevb
 
-import emmy.autodiff.{ Constant, ContinuousVariable, Evaluable, EvaluationContext, Expression, GradientContext, Node, ValueOps, log, sum }
+import emmy.autodiff.{ Constant, ContinuousVariable, Evaluable, EvaluationContext, Expression, GradientContext, ValueOps, log, sum }
+import emmy.inference.Sampler
 
 import scalaz.Scalaz.Id
 
-trait Sampler {
-
-  def variable: Node
-
-  def update(logP: Expression[Id, Double, Any], gc: GradientContext, rho: Double): (Sampler, Double)
-
-  def logp(): Expression[Id, Double, Any]
-}
-
-class AEVBSampler[U[_], S](
+class ContinuousSampler[U[_], S](
     val variable: ContinuousVariable[U, S],
     val mu:       U[Double],
     val sigma:    U[Double]
@@ -36,7 +28,7 @@ class AEVBSampler[U[_], S](
    * the jacobian d\theta/d\sigma.  (similar factor for \mu is 1)
    */
   // @formatter:on
-  def update(logP: Expression[Id, Double, Any], gc: GradientContext, rho: Double): (AEVBSampler[U, S], Double) = {
+  def update(logP: Expression[Id, Double, Any], gc: GradientContext, rho: Double): (ContinuousSampler[U, S], Double) = {
     val vt = variable.vt(gc)
     val value = gc(variable)
     implicit val ops = variable.ops
@@ -71,7 +63,7 @@ class AEVBSampler[U[_], S](
         )
       )
     val newSigma = vt.exp(newLambda)
-    val newSampler = new AEVBSampler[U, S](variable, newMu, newSigma)
+    val newSampler = new ContinuousSampler[U, S](variable, newMu, newSigma)
     (newSampler, delta(newSampler, vt))
   }
 
@@ -80,7 +72,7 @@ class AEVBSampler[U[_], S](
     vt.div(delta, vt.times(sigma, sigma))
   }
 
-  def delta(other: AEVBSampler[U, S], vt: ValueOps[U, Double, S]): Double = {
+  def delta(other: ContinuousSampler[U, S], vt: ValueOps[U, Double, S]): Double = {
     val ops = variable.ops
     ops.foldLeft(vt.abs(vt.div(vt.minus(mu, other.mu), sigma)))(0.0)(_ + _)
   }

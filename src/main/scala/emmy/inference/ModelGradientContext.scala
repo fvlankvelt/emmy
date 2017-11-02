@@ -1,9 +1,10 @@
 package emmy.inference
 
 import emmy.autodiff.ContainerOps.Aux
-import emmy.autodiff.{ ContinuousVariable, Expression, GradientContext }
+import emmy.autodiff.{ CategoricalVariable, ContinuousVariable, Expression, GradientContext, Variable }
 
 import scala.collection.mutable
+import scalaz.Scalaz.Id
 
 class ModelGradientContext(model: Model) extends GradientContext {
 
@@ -12,8 +13,12 @@ class ModelGradientContext(model: Model) extends GradientContext {
 
   override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] =
     n match {
+      case v: Variable[U, V, S] if v.isInstanceOf[CategoricalVariable] ⇒
+        val value = modelSample.getSampleValue[Id, Int, Any](v.asInstanceOf[CategoricalVariable])
+        cache.getOrElseUpdate(n, value)
+          .asInstanceOf[U[V]]
       case v: ContinuousVariable[U, S] ⇒
-        cache.getOrElseUpdate(n, modelSample.getSampleValue[U, S](v))
+        cache.getOrElseUpdate(n, modelSample.getSampleValue[U, Double, S](v))
           .asInstanceOf[U[V]]
       case _ ⇒
         cache.getOrElseUpdate(n, n.apply(this))

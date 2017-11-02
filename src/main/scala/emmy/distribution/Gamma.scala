@@ -4,7 +4,7 @@ import emmy.autodiff.{ ContainerOps, ContinuousVariable, Evaluable, EvaluationCo
 
 import scalaz.Scalaz.Id
 
-trait GammaStochast[U[_], S] extends Stochast {
+trait GammaFactor[U[_], S] extends Factor {
   self: Expression[U, Double, S] ⇒
 
   def alpha: Expression[U, Double, S]
@@ -33,7 +33,7 @@ case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, D
       val alpha: Expression[U, Double, S],
       val beta:  Expression[U, Double, S]
   )(implicit val ops: ContainerOps.Aux[U, S])
-    extends ContinuousVariable[U, S] with GammaStochast[U, S] {
+    extends ContinuousVariable[U, S] with GammaFactor[U, S] {
 
     override val vt: Evaluable[ValueOps[U, Double, S]] =
       alpha.vt
@@ -58,7 +58,7 @@ case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, D
       val beta:  Expression[U, Double, S],
       val value: Evaluable[U[Double]]
   )(implicit val ops: ContainerOps.Aux[U, S])
-    extends Observation[U, Double, S] with GammaStochast[U, S] {
+    extends Observation[U, Double, S] with GammaFactor[U, S] {
 
     override val vt: Evaluable[ValueOps[U, Double, S]] =
       alpha.vt

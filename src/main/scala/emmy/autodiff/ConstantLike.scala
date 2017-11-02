@@ -6,17 +6,11 @@ trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
 
   def value: Evaluable[U[V]]
 
-  override def apply(ec: EvaluationContext) = value(ec)
+  override def apply(ec: EvaluationContext) =
+    value(ec)
 
-  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
-    val ops = implicitly[ContainerOps[W]]
-    val shape = ops.shapeOf(gc(v))
-    ops.fill(shape, vt(gc).forDouble.zero)
-  }
-
-  override def toString: String = {
+  override def toString: String =
     value.toString
-  }
 }
 
 case class Constant[U[_], V, S](value: Evaluable[U[V]])(implicit
@@ -26,7 +20,8 @@ case class Constant[U[_], V, S](value: Evaluable[U[V]])(implicit
 )
   extends ConstantLike[U, V, S] {
 
-  override val vt = value.map(toVT)
+  override val vt: Evaluable[ValueOps[U, V, S]] =
+    value.map(toVT)
 
   private def toVT(v: U[V]) = {
     val shape = ops.shapeOf(v)

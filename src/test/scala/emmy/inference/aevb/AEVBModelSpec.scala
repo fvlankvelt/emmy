@@ -1,12 +1,14 @@
-package emmy.inference
+package emmy.inference.aevb
 
 import breeze.linalg.DenseVector
 import breeze.numerics.abs
+import emmy.autodiff.ContainerOps.Aux
 import emmy.autodiff._
-import emmy.distribution.{ Categorical, Normal }
+import emmy.distribution.{Categorical, Normal}
 import org.scalatest.FlatSpec
 
 import scala.util.Random
+import scalaz.Scalaz
 import scalaz.Scalaz.Id
 
 class AEVBModelSpec extends FlatSpec {
@@ -116,6 +118,52 @@ class AEVBModelSpec extends FlatSpec {
     }
     println("Posterior model:")
     printVariable(model, "testvar", testvar)
+
+    val sampler = model.getSampler[Id, Double, Any](testvar)
+    assert(abs(sampler.mu - 1.5) < 0.05)
   }
+
+  /*
+  it should "infer mixture models" in {
+    val data = () ⇒ {
+      val mu = Seq(1.0, 2.5)
+      val sigma = Seq(0.5, 0.2)
+      val dists = (mu zip sigma).map{ case (m, s) =>
+        breeze.stats.distributions.Gaussian(m, s)
+      }
+      val p = 1.0 / (1.0 + math.exp(1.5))
+      val vec: DenseVector[Double] = DenseVector(p, 1.0 - p)
+      val dist = breeze.stats.distributions.Multinomial(vec)
+      dist.sample(100).map { idx =>
+        dists(idx).sample()
+      }
+    }
+
+    val testvar = Normal(0.0, 1.0).sample
+    val pvar = 1.0 / (1.0 + exp(testvar))
+    val multi = Categorical(Vector(pvar, 1.0 - pvar))
+
+    val mus = Range(0, 2).map(_ => Normal(0.0, 1.0).sample)
+    val sigmas = Range(0, 2).map(_ => exp(Normal(0.0, 1.0).sample))
+    val dists = (mus zip sigmas).map { case (m, s) => Normal(m, s) }
+    val index = multi.sample
+    val sample = new Expression[Id, Double, Any] {
+
+      override implicit val ops: Aux[Scalaz.Id, Shape] =
+        ContainerOps.idOps
+
+      override implicit val so: ScalarOps[Scalaz.Id[Double], Scalaz.Id[Double]] =
+        ScalarOps.doubleOps
+
+      override implicit def vt: Evaluable[ValueOps[Scalaz.Id, Double, Any]] =
+        ValueOps(Floating.doubleFloating, ops, null)
+
+      override def apply(ec: EvaluationContext): Scalaz.Id[Double] = {
+        val idx = ec(index)
+        val dist = dists(idx)
+      }
+    }
+  }
+  */
 
 }
