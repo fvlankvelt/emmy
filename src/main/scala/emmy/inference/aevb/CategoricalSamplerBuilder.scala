@@ -21,6 +21,11 @@ case class CategoricalSamplerBuilder(variable: CategoricalVariable) extends Samp
 
   def build(): CategoricalSampler = {
     val k = kOpt.get
-    new CategoricalSampler(variable, Range(0, k).map { _ ⇒ 1.0 / k })
+    val counts = Array.fill(k)(1)
+    for (sample <- samples) {
+      counts(sample) += 1
+    }
+    val total = counts.sum
+    new CategoricalSampler(variable, counts.map { c => c * 1.0 / total })
   }
 }
