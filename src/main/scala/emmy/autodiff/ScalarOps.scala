@@ -23,6 +23,8 @@ trait LowPriorityScalarOps {
       override def times(v: U[V], y: W) = cOps.map(v)(vi ⇒ base.times(vi, y))
 
       override def div(v: U[V], y: W) = cOps.map(v)(vi ⇒ base.div(vi, y))
+
+      override def toString = s"Lift left ($base) to $cOps"
     }
 
   implicit def liftBoth[U[_], V, Y](implicit base: ScalarOps[V, Y], ops: ContainerOps[U]): ScalarOps[U[V], U[Y]] =
@@ -35,6 +37,8 @@ trait LowPriorityScalarOps {
       override def times(x: U[V], y: U[Y]) = ops.zipMap(x, y)(base.times)
 
       override def div(x: U[V], y: U[Y]) = ops.zipMap(x, y)(base.div)
+
+      override def toString = s"Lift ($base) to $ops"
     }
 
 }
@@ -51,6 +55,8 @@ object ScalarOps extends LowPriorityScalarOps {
       override def times(v: Double, y: Double) = v * y
 
       override def div(v: Double, y: Double) = v / y
+
+      override def toString = "double ops"
     }
 
   implicit val intOps: ScalarOps[Int, Int] =
@@ -63,6 +69,8 @@ object ScalarOps extends LowPriorityScalarOps {
       override def times(v: Int, y: Int) = v * y
 
       override def div(v: Int, y: Int) = v / y
+
+      override def toString = "int ops"
     }
 
   implicit val intDoubleOps: ScalarOps[Double, Int] =
@@ -75,6 +83,8 @@ object ScalarOps extends LowPriorityScalarOps {
       override def times(v: Double, y: Int) = v * y
 
       override def div(v: Double, y: Int) = v / y
+
+      override def toString = "int2double ops"
     }
 
 }

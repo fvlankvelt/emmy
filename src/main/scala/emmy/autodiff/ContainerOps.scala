@@ -45,6 +45,8 @@ object ContainerOps {
 
     override def fill[A](shape: Shape, value: A) =
       value
+
+    override def toString = "Id container ops"
   }
 
   implicit val listOps = new ContainerOps[List] {
@@ -83,6 +85,8 @@ object ContainerOps {
     override def fill[A](shape: Int, value: A) = {
       Range(0, shape).map(_ ⇒ value).toList
     }
+
+    override def toString = "List container ops"
   }
 
   implicit val arrayOps = new ContainerOps[IndexedSeq] {
@@ -121,6 +125,8 @@ object ContainerOps {
     override def fill[A](shape: Int, value: A) = {
       Range(0, shape).map(_ ⇒ value)
     }
+
+    override def toString = "IndexedSeq container ops"
   }
 
 }
