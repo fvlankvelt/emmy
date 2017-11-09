@@ -1,4 +1,5 @@
 package emmy.autodiff
+
 import emmy.autodiff.ContainerOps.Aux
 import emmy.distribution.Observation
 
@@ -15,7 +16,9 @@ trait Visitor[R] {
 
 trait Node {
 
-  def visit[R](visitor: Visitor[R]): R
+  def visit[R](visitor: Visitor[R]): R = {
+    visitor.visitNode(this)
+  }
 
   def parents: Seq[Node] = Seq.empty
 }
@@ -69,10 +72,6 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
   implicit val so: ScalarOps[U[Double], U[V]]
 
   implicit def vt: Evaluable[ValueOps[U, V, S]]
-
-  def visit[R](visitor: Visitor[R]) = {
-    visitor.visitNode(this)
-  }
 
   def apply(ec: EvaluationContext): U[V]
 
