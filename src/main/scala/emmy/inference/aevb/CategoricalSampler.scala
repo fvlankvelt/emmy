@@ -1,7 +1,7 @@
 package emmy.inference.aevb
 
-import breeze.numerics.{abs, exp, log}
-import emmy.autodiff.{CategoricalVariable, Constant, ConstantLike, ContinuousVariable, EvaluationContext, Expression, GradientContext}
+import breeze.numerics.abs
+import emmy.autodiff.{ CategoricalVariable, Constant, ConstantLike, ContinuousVariable, EvaluationContext, Expression, GradientContext }
 import emmy.distribution.CategoricalFactor
 import emmy.inference.Sampler
 
@@ -20,8 +20,10 @@ trait SamplerVariable[U[_], T]
 class CategoricalSampler(
     val variable: CategoricalVariable,
     val thetas:   IndexedSeq[Double],
-    val offset: Double = 0.0
+    val offset:   Double              = 0.0
 ) extends Sampler {
+
+  private val precision = 1e-10
 
   private val Q = {
     val v = variable
@@ -34,38 +36,51 @@ class CategoricalSampler(
     }
   }
 
-  def update(logP: Expression[Id, Double, Any], gc: GradientContext, rho: Double): (CategoricalSampler, Double) = {
-    val index = gc(variable)
+  //@formatter:off
+  /**
+   * note: logP is not normalized - so deltaLog has non-zero offset
+   * The expectation of the gradient of this constant is zero, however:
+   * E_Q[grad(log Q) * cst] =
+   *   cst * E_Q[grad(log Q)] =
+   *       cst * grad(E_Q[1]) = 0
+   * The constant is tracked to speed up convergence - still needs to be verified though
+   */
+  //@formatter:on
+  def update(logP: Expression[Id, Double, Any], eval: GradientContext, rho: Double): (CategoricalSampler, Double) = {
+    val index = eval(variable)
     val gradLogQ = gradLogTheta(index)
-    // note: logP is not normalized - so deltaLog has non-zero offset
-    // E_Q[grad(log Q) * cst] =
-    //   cst * E_Q[grad(log Q)] =
-    //       cst * grad(E_Q[1]) = 0
-    val lp = gc(logP)
-    val deltaLog = gc(logp()) - (lp - offset)
+    val lp = eval(logP)
+    val deltaLog = eval(logp()) - (lp - offset)
     val newThetas = (thetas zip gradLogQ).map {
       case (theta, grad) ⇒
-        exp(
-//          (1.0 - rho) * log(theta) - rho * grad * deltaLog
-          log(theta) - rho * grad * deltaLog
-        )
+        val dLogTheta = -rho * grad * deltaLog
+        val factor = if (dLogTheta > 0) 1 + dLogTheta else 1.0 / (1 - dLogTheta)
+        theta * factor + precision
     }
     val sum = newThetas.sum
     val delta = (thetas zip gradLogQ).map {
       case (theta, grad) ⇒
         theta * abs(grad)
     }.sum * rho * abs(deltaLog)
-    (new CategoricalSampler(variable, newThetas.map{_ / sum}, (1.0 - rho) * offset + rho * lp), delta)
-//    (new CategoricalSampler(variable, newThetas, offset), delta)
+    (
+      new CategoricalSampler(
+        variable, newThetas.map {
+        _ / sum
+      },
+        (1.0 - rho) * offset + rho * lp
+      ),
+      delta
+    )
+    //    (new CategoricalSampler(variable, newThetas, offset), delta)
   }
 
   private def gradLogTheta(index: Int): IndexedSeq[Double] = {
     val thetaSum = thetas.sum
     thetas.zipWithIndex.map {
-      case (theta, idx) if idx == index =>
+      case (theta, idx) if idx == index ⇒
         1.0 - theta / thetaSum
-      case (theta, _) =>
-        - theta / thetaSum
+      case (theta, _) ⇒
+        -theta / thetaSum
     }
   }
 

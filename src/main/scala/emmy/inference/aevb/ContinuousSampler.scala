@@ -26,6 +26,9 @@ class ContinuousSampler[U[_], S](
    * The factors \sigma**2 and \sigma**2/2, respectively, are due to
    * the conversion to natural gradient.  The \epsilon factor is
    * the jacobian d\theta/d\sigma.  (similar factor for \mu is 1)
+   *
+   * Updates are taken through a tanh to prevent updates from taking the
+   * mean too far from it's current value.  The scale is set by the stddev.
    */
   // @formatter:on
   def update(logP: Expression[Id, Double, Any], gc: GradientContext, rho: Double): (ContinuousSampler[U, S], Double) = {

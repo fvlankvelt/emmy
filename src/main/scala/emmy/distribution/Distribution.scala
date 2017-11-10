@@ -1,6 +1,6 @@
 package emmy.distribution
 
-import emmy.autodiff.{ConstantLike, Expression, Variable, Visitor}
+import emmy.autodiff.{ ConstantLike, Expression, Visitor }
 
 import scalaz.Scalaz.Id
 

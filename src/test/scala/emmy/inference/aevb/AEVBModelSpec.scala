@@ -4,7 +4,7 @@ import breeze.linalg.DenseVector
 import breeze.numerics.abs
 import emmy.autodiff.ContainerOps.Aux
 import emmy.autodiff._
-import emmy.distribution.{Categorical, Normal}
+import emmy.distribution.{ Categorical, Distribution, Normal, Observation }
 import org.scalatest.FlatSpec
 
 import scala.util.Random
@@ -111,7 +111,7 @@ class AEVBModelSpec extends FlatSpec {
     println("Prior model:")
     printVariable(model, "testvar", testvar)
 
-    for { _ ← 0 until 10 } {
+    for { _ ← 0 until 100 } {
       val observations = data().map { values ⇒ multi.observe(values) }
       val newModel = model.update(observations)
       model = newModel
@@ -123,47 +123,97 @@ class AEVBModelSpec extends FlatSpec {
     assert(abs(sampler.mu - 1.5) < 0.05)
   }
 
-  /*
   it should "infer mixture models" in {
     val data = () ⇒ {
-      val mu = Seq(1.0, 2.5)
-      val sigma = Seq(0.5, 0.2)
-      val dists = (mu zip sigma).map{ case (m, s) =>
-        breeze.stats.distributions.Gaussian(m, s)
+      val mu = Seq(-1.0, 1.0)
+      val sigma = Seq(0.5, 0.5)
+      val dists = (mu zip sigma).map {
+        case (m, s) ⇒
+          breeze.stats.distributions.Gaussian(m, s)
       }
-      val p = 1.0 / (1.0 + math.exp(1.5))
+      val p = 0.5
       val vec: DenseVector[Double] = DenseVector(p, 1.0 - p)
       val dist = breeze.stats.distributions.Multinomial(vec)
-      dist.sample(100).map { idx =>
+      dist.sample(10).map { idx ⇒
         dists(idx).sample()
       }
     }
 
-    val testvar = Normal(0.0, 1.0).sample
-    val pvar = 1.0 / (1.0 + exp(testvar))
+    val pvar = 0.5
     val multi = Categorical(Vector(pvar, 1.0 - pvar))
 
-    val mus = Range(0, 2).map(_ => Normal(0.0, 1.0).sample)
-    val sigmas = Range(0, 2).map(_ => exp(Normal(0.0, 1.0).sample))
-    val dists = (mus zip sigmas).map { case (m, s) => Normal(m, s) }
-    val index = multi.sample
-    val sample = new Expression[Id, Double, Any] {
+    val mus = Range(0, 2).map(i ⇒ Normal(0.0, 0.5).sample)
+    val clusters = mus.map { m ⇒ Normal(m, 0.5) }
+    val result = new Distribution[Id, Double, Any] {
 
-      override implicit val ops: Aux[Scalaz.Id, Shape] =
-        ContainerOps.idOps
+      override def sample: Expression[Scalaz.Id, Double, Any] = ???
 
-      override implicit val so: ScalarOps[Scalaz.Id[Double], Scalaz.Id[Double]] =
-        ScalarOps.doubleOps
+      override def observe(data: Scalaz.Id[Double]): Observation[Scalaz.Id, Double, Any] = {
+        val index = multi.sample
+        val observations = clusters.map(_.observe(data))
 
-      override implicit def vt: Evaluable[ValueOps[Scalaz.Id, Double, Any]] =
-        ValueOps(Floating.doubleFloating, ops, null)
+        new Observation[Id, Double, Any] {
 
-      override def apply(ec: EvaluationContext): Scalaz.Id[Double] = {
-        val idx = ec(index)
-        val dist = dists(idx)
+          override val parents: Seq[Node] =
+            observations.flatMap(_.parents) :+ index
+
+          override implicit val ops: Aux[Scalaz.Id, Shape] =
+            ContainerOps.idOps
+
+          override implicit val so: ScalarOps[Scalaz.Id[Double], Scalaz.Id[Double]] =
+            ScalarOps.doubleOps
+
+          override implicit def vt: Evaluable[ValueOps[Scalaz.Id, Double, Any]] =
+            ValueOps(Floating.doubleFloating, ops, null)
+
+          override def value: Evaluable[Scalaz.Id[Double]] =
+            data
+
+          override def logp(): Expression[Scalaz.Id, Double, Any] = {
+            val logs = observations.map(_.logp())
+            new Expression[Id, Double, Any] {
+
+              override implicit val ops: Aux[Scalaz.Id, Shape] =
+                ContainerOps.idOps
+
+              override implicit val so: ScalarOps[Scalaz.Id[Double], Scalaz.Id[Double]] =
+                ScalarOps.doubleOps
+
+              override implicit def vt: Evaluable[ValueOps[Scalaz.Id, Double, Any]] =
+                ValueOps(Floating.doubleFloating, ops, null)
+
+              override def apply(ec: EvaluationContext): Scalaz.Id[Double] = {
+                val idx = ec(index)
+                ec(logs(idx))
+              }
+
+              override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]) = {
+                val idx = gc(index)
+                gc(logs(idx), v)
+              }
+            }
+          }
+        }
       }
     }
+
+    var model = AEVBModel(mus: Seq[Node])
+    println("Prior model:")
+
+    for { _ ← 0 until 100 } {
+      val d = data()
+      val observations = d.map { x ⇒ result.observe(x) }
+      val newModel = model.update(observations)
+      model = newModel
+      println("Posterior model:")
+      printVariable(model, "mu(0)", mus(0))
+      printVariable(model, "mu(1)", mus(1))
+    }
+    {
+      val dists = mus.map { mu ⇒ model.distributionOf(mu) }
+      assert(abs(dists(0)._1 + dists(1)._1) < 0.15)
+      assert(abs(abs(dists(0)._1 - dists(1)._1) - 2.0) < 0.3)
+    }
   }
-  */
 
 }

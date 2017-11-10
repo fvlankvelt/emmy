@@ -77,7 +77,7 @@ class AEVBModel private[AEVBModel] (
       }.toMap[Sampler, Double]
 
       val totalDelta = updatedWithDelta.values.sum
-      if (totalDelta < 0.001) {
+      if (iter > 20 && totalDelta < 0.0001) {
         updatedWithDelta.keys
       }
       else {
