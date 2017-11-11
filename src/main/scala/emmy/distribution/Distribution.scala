@@ -1,12 +1,12 @@
 package emmy.distribution
 
-import emmy.autodiff.{ ConstantLike, Expression, Visitor }
+import emmy.autodiff.{ ConstantLike, Expression, Variable, Visitor }
 
 import scalaz.Scalaz.Id
 
 trait Distribution[U[_], V, S] {
 
-  def sample: Expression[U, V, S]
+  def sample: Variable[U, V, S]
 
   def observe(data: U[V]): Observation[U, V, S]
 }

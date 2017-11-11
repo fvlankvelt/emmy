@@ -1,7 +1,7 @@
 package emmy.inference.aevb
 
-import breeze.numerics.{abs, tanh}
-import emmy.autodiff.{CategoricalVariable, Constant, ConstantLike, ContinuousVariable, EvaluationContext, Expression, GradientContext}
+import breeze.numerics.{ abs, tanh }
+import emmy.autodiff.{ CategoricalVariable, Constant, ConstantLike, ContinuousVariable, EvaluationContext, Expression, GradientContext }
 import emmy.distribution.CategoricalFactor
 import emmy.inference.Sampler
 

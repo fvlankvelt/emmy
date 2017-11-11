@@ -2,7 +2,7 @@ package emmy.inference.aevb
 
 import breeze.numerics.abs
 import emmy.autodiff.ContainerOps.Aux
-import emmy.autodiff.{CategoricalVariable, ContainerOps, Evaluable, EvaluationContext, Expression, Floating, Node, ScalarOps, ValueOps}
+import emmy.autodiff.{ CategoricalVariable, ContainerOps, Evaluable, EvaluationContext, Expression, Floating, Node, ScalarOps, ValueOps }
 import emmy.inference.ModelGradientContext
 import org.scalatest.FlatSpec
 

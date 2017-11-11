@@ -2,13 +2,11 @@ package emmy.inference.aevb
 
 import breeze.linalg.DenseVector
 import breeze.numerics.abs
-import emmy.autodiff.ContainerOps.Aux
 import emmy.autodiff._
-import emmy.distribution.{ Categorical, Distribution, Normal, Observation }
+import emmy.distribution._
 import org.scalatest.FlatSpec
 
 import scala.util.Random
-import scalaz.Scalaz
 import scalaz.Scalaz.Id
 
 class AEVBModelSpec extends FlatSpec {
@@ -144,58 +142,7 @@ class AEVBModelSpec extends FlatSpec {
 
     val mus = Range(0, 2).map(i ⇒ Normal(0.0, 0.5).sample)
     val clusters = mus.map { m ⇒ Normal(m, 0.5) }
-    val result = new Distribution[Id, Double, Any] {
-
-      override def sample: Expression[Scalaz.Id, Double, Any] = ???
-
-      override def observe(data: Scalaz.Id[Double]): Observation[Scalaz.Id, Double, Any] = {
-        val index = multi.sample
-        val observations = clusters.map(_.observe(data))
-
-        new Observation[Id, Double, Any] {
-
-          override val parents: Seq[Node] =
-            observations.flatMap(_.parents) :+ index
-
-          override implicit val ops: Aux[Scalaz.Id, Shape] =
-            ContainerOps.idOps
-
-          override implicit val so: ScalarOps[Scalaz.Id[Double], Scalaz.Id[Double]] =
-            ScalarOps.doubleOps
-
-          override implicit def vt: Evaluable[ValueOps[Scalaz.Id, Double, Any]] =
-            ValueOps(Floating.doubleFloating, ops, null)
-
-          override def value: Evaluable[Scalaz.Id[Double]] =
-            data
-
-          override def logp(): Expression[Scalaz.Id, Double, Any] = {
-            val logs = observations.map(_.logp())
-            new Expression[Id, Double, Any] {
-
-              override implicit val ops: Aux[Scalaz.Id, Shape] =
-                ContainerOps.idOps
-
-              override implicit val so: ScalarOps[Scalaz.Id[Double], Scalaz.Id[Double]] =
-                ScalarOps.doubleOps
-
-              override implicit def vt: Evaluable[ValueOps[Scalaz.Id, Double, Any]] =
-                ValueOps(Floating.doubleFloating, ops, null)
-
-              override def apply(ec: EvaluationContext): Scalaz.Id[Double] = {
-                val idx = ec(index)
-                ec(logs(idx))
-              }
-
-              override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]) = {
-                val idx = gc(index)
-                gc(logs(idx), v)
-              }
-            }
-          }
-        }
-      }
-    }
+    val result = Select(multi, clusters)
 
     var model = AEVBModel(mus: Seq[Node])
     println("Prior model:")
