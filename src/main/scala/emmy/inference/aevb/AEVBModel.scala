@@ -69,7 +69,7 @@ class AEVBModel private[AEVBModel] (
     @tailrec
     def iterate(iter: Int, samplers: Iterable[Sampler]): Iterable[Sampler] = {
       val variables = samplers.map { s ⇒ s.variable -> s }.toMap
-      val rho = 1.0 / (iter + 10)
+      val rho = 1.0 / (iter + 1)
       val model = new AEVBSamplersModel(variables)
       val gc = new ModelGradientContext(model)
       val updatedWithDelta = samplers.map { sampler ⇒
@@ -77,7 +77,8 @@ class AEVBModel private[AEVBModel] (
       }.toMap[Sampler, Double]
 
       val totalDelta = updatedWithDelta.values.sum
-      if (iter > 20 && totalDelta < 0.0001) {
+//      if (iter > 20 && totalDelta < 0.0001) {
+      if (totalDelta < 0.0001) {
         updatedWithDelta.keys
       }
       else {
