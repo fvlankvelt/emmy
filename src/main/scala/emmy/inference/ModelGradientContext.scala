@@ -25,7 +25,10 @@ class ModelGradientContext(model: Model) extends GradientContext {
           .asInstanceOf[U[V]]
     }
 
-  override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
+  override def apply[W[_], U[_], V, T, S](
+    n: Expression[U, V, S],
+    v: ContinuousVariable[W, T]
+  )(implicit wOps: Aux[W, T]): Option[W[U[Double]]] = {
     n.grad(this, v)
   }
 }

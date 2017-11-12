@@ -18,10 +18,16 @@ case class Add[U[_], V, S](
   }
 
   override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
-    val valT = vt(gc)
-    val ring = valT.forDouble
-    wOps.zipMap(gc(lhs, v), gc(rhs, v)) {
-      (lg, rg) ⇒ ring.plus(lg, rg)
+    (gc(lhs, v), gc(rhs, v)) match {
+      case (None, None)     ⇒ None
+      case (Some(lg), None) ⇒ Some(lg)
+      case (None, Some(rg)) ⇒ Some(rg)
+      case (Some(lg), Some(rg)) ⇒
+        val valT = vt(gc)
+        val ring = valT.forDouble
+        Some(wOps.zipMap(lg, rg) {
+          (l, r) ⇒ ring.plus(l, r)
+        })
     }
   }
 

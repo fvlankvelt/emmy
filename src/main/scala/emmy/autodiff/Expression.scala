@@ -60,7 +60,7 @@ trait EvaluationContext {
 
 trait GradientContext extends EvaluationContext {
 
-  def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): W[U[Double]]
+  def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Option[W[U[Double]]]
 }
 
 trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
@@ -75,10 +75,8 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
 
   def apply(ec: EvaluationContext): U[V]
 
-  def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Gradient[W, U] = {
-    val ops = implicitly[ContainerOps[W]]
-    val shape = ops.shapeOf(gc(v))
-    ops.fill(shape, vt(gc).forDouble.zero)
+  def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Option[Gradient[W, U]] = {
+    None
   }
 
   def unary_-(): Expression[U, V, S] =
@@ -115,7 +113,7 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
         ops.map(up)(valT.toDouble)
       }
 
-      override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): Gradient[W, U] = {
+      override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): Option[Gradient[W, U]] = {
         self.grad(gc, v)
       }
     }

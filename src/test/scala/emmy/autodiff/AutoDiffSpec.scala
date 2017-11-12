@@ -21,7 +21,7 @@ class AutoDiffSpec extends FlatSpec {
       }
     }
 
-    override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): W[U[Double]] = {
+    override def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): Option[W[U[Double]]] = {
       n.grad(this, v)
     }
   }
@@ -33,7 +33,7 @@ class AutoDiffSpec extends FlatSpec {
     val y = x * x
     assert(y(ec) == 4.0)
 
-    val z: Double = y.grad(gc, x)
+    val z: Double = y.grad(gc, x).get
     assert(z == 4.0)
   }
 
@@ -42,7 +42,7 @@ class AutoDiffSpec extends FlatSpec {
     val y = -(x - 1.0) * (x - 1.0) / 2.0
     assert(y(ec) == -0.5)
 
-    val z: Double = y.grad(gc, x)
+    val z: Double = y.grad(gc, x).get
     assert(z == 1.0)
   }
 
@@ -51,7 +51,7 @@ class AutoDiffSpec extends FlatSpec {
     val y = x * x
     assert(y(ec) == List(1.0, 4.0))
 
-    val z = y.grad(gc, x)
+    val z = y.grad(gc, x).get
     assert(z == List(List(2.0, 0.0), List(0.0, 4.0)))
   }
 
@@ -60,7 +60,7 @@ class AutoDiffSpec extends FlatSpec {
     val y = Constant(1.0) / x
     assert(y(ec) == 0.5)
 
-    val z: Double = y.grad(gc, x)
+    val z: Double = y.grad(gc, x).get
     assert(z == -0.25)
   }
 
@@ -69,7 +69,7 @@ class AutoDiffSpec extends FlatSpec {
     val y = log(x)
     assert(y(ec) == scala.math.log(2.0))
 
-    val z: Double = y.grad(gc, x)
+    val z: Double = y.grad(gc, x).get
     assert(z == 0.5)
   }
 
@@ -78,7 +78,7 @@ class AutoDiffSpec extends FlatSpec {
     val y = log(x)
     assert(y(ec) == List(0.0, scala.math.log(2.0)))
 
-    val z = y.grad(gc, x)
+    val z = y.grad(gc, x).get
     assert(z == List(List(1.0, 0.0), List(0.0, 0.5)))
   }
 
@@ -110,7 +110,7 @@ class AutoDiffSpec extends FlatSpec {
       a.logp() + b.logp() + e.logp()
     println(logp(ec))
 
-    val g_a: Double = logp.grad(gc, a)
+    val g_a: Double = logp.grad(gc, a).get
     println(g_a)
   }
 
@@ -119,14 +119,14 @@ class AutoDiffSpec extends FlatSpec {
     val y = exp(x)
     assert(y(ec) == scala.math.exp(1.0))
 
-    val z: Double = y.grad(gc, x)
+    val z: Double = y.grad(gc, x).get
     assert(z == scala.math.exp(1.0))
   }
 
   it should "derive zero for gradient of constant" in {
     val x = TestVariable(1.0)
     val y = Constant(2.0)
-    val g: Double = y.grad(gc, x)
-    assert(g == 0.0)
+    val g: Option[Double] = y.grad(gc, x)
+    assert(g.isEmpty)
   }
 }

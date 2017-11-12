@@ -32,14 +32,15 @@ trait CategoricalFactor extends Factor with Node {
         Floating.doubleFloating.log(thetav(index) / thetav.sum)
       }
 
-      override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): Gradient[W, Scalaz.Id] = {
-        val index = gc(variable)
-        val thetav = gc(thetas)
-        val theta = thetav(index)
-        val thetaSum = thetav.sum
-        val g = gc(thetas, v)
-        wOps.map(g) { ug ⇒
-          ug(index) / theta - ug.sum / thetaSum
+      override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]) = {
+        gc(thetas, v).map { g ⇒
+          val index = gc(variable)
+          val thetav = gc(thetas)
+          val theta = thetav(index)
+          val thetaSum = thetav.sum
+          wOps.map(g) { ug ⇒
+            ug(index) / theta - ug.sum / thetaSum
+          }
         }
       }
     }

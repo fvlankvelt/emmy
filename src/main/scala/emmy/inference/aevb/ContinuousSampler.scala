@@ -35,7 +35,7 @@ class ContinuousSampler[U[_], S](
     val vt = variable.vt(gc)
     val value = gc(variable)
     implicit val ops = variable.ops
-    val gradP = gc(logP, variable)
+    val gradP = gc(logP, variable).get
     val gradQ = gradValue(value, vt)
     val gradDelta = vt.minus(gradP, gradQ)
     val scaledDelta = vt.tanh(

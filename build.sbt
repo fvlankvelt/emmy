@@ -16,7 +16,6 @@ libraryDependencies ++= Seq(
 
 
 scalacOptions ++= Seq(
-  "-Xfatal-warnings",
   "-Xlint",
   "-feature",
   "-language:implicitConversions",

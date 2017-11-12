@@ -76,23 +76,24 @@ case class AccumulatingExpression[U[_]: ContainerOps, V, S, A](
   // ug = (x1', x2', x3')
 
   override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
-    implicit val sod = so
-    val ug = gc(up, v)
-    val valT = vt(gc)
-    val valD = valT.forDouble
-    val result = wOps.map(ug) { g ⇒
-      val vg = opsU.zipMap(gc(up), g)((_, _))
-      opsU.foldLeft(vg)((rf.start, valD.zero)) {
-        (acc, x) ⇒
-          val (av, ag) = acc
-          val (xv, xg) = x
-          (
-            rf(av, xv),
-            sod.times(valD.plus(xg, ag), rf.grad(av, xv))
-          )
+    gc(up, v).map { ug ⇒
+      implicit val sod = so
+      val valT = vt(gc)
+      val valD = valT.forDouble
+      val result = wOps.map(ug) { g ⇒
+        val vg = opsU.zipMap(gc(up), g)((_, _))
+        opsU.foldLeft(vg)((rf.start, valD.zero)) {
+          (acc, x) ⇒
+            val (av, ag) = acc
+            val (xv, xg) = x
+            (
+              rf(av, xv),
+              sod.times(valD.plus(xg, ag), rf.grad(av, xv))
+            )
+        }
       }
+      wOps.map(result)(_._2)
     }
-    wOps.map(result)(_._2)
   }
 
   override def toString: String = {

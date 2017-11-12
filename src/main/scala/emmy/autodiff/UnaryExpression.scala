@@ -80,11 +80,12 @@ case class UnaryExpression[U[_], V, S](
   }
 
   override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
-    val opsW = implicitly[ContainerOps[W]]
-    val ug = gc(up, v)
-    opsW.map(ug) { g ⇒
-      val v = gc(up)
-      so.times(g, ops.map(v)(u ⇒ rf.grad(gc, u)))
+    gc(up, v).map { ug ⇒
+      val opsW = implicitly[ContainerOps[W]]
+      opsW.map(ug) { g ⇒
+        val v = gc(up)
+        so.times(g, ops.map(v)(u ⇒ rf.grad(gc, u)))
+      }
     }
   }
 
