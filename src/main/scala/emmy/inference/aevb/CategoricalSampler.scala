@@ -1,6 +1,6 @@
 package emmy.inference.aevb
 
-import breeze.numerics.{ abs, tanh }
+import breeze.numerics.abs
 import emmy.autodiff.{ CategoricalVariable, Constant, ConstantLike, ContinuousVariable, EvaluationContext, Expression, GradientContext }
 import emmy.distribution.CategoricalFactor
 import emmy.inference.Sampler
@@ -50,10 +50,10 @@ class CategoricalSampler(
     val lp = eval(logP)
     val newOffset = (1.0 - rho) * offset + rho * lp
 
-    val deltaLog = tanh(eval(logp()) - (lp - newOffset))
+    val deltaLog = eval(logp()) - (lp - newOffset)
     val newThetas = (thetas zip gradLogQ).map {
       case (theta, grad) ⇒
-        val dLogTheta = -rho * grad * deltaLog
+        val dLogTheta = -grad * rho * deltaLog
         val factor = if (dLogTheta > 0) 1 + dLogTheta else 1.0 / (1 - dLogTheta)
         theta * factor
     }

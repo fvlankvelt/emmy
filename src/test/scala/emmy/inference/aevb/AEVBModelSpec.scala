@@ -118,7 +118,7 @@ class AEVBModelSpec extends FlatSpec {
     printVariable(model, "testvar", testvar)
 
     val sampler = model.getSampler[Id, Double, Any](testvar)
-    assert(abs(sampler.mu - 1.5) < 0.05)
+    assert(abs(sampler.mu - 1.5) < 0.10)
   }
 
   it should "infer mixture models" in {
@@ -140,14 +140,14 @@ class AEVBModelSpec extends FlatSpec {
     val pvar = 0.5
     val multi = Categorical(Vector(pvar, 1.0 - pvar))
 
-    val mus = Range(0, 2).map(i ⇒ Normal(0.0, 0.5).sample)
+    val mus = Range(0, 2).map(_ ⇒ Normal(0.0, 0.5).sample)
     val clusters = mus.map { m ⇒ Normal(m, 0.5) }
     val result = Select(multi, clusters)
 
     var model = AEVBModel(mus: Seq[Node])
     println("Prior model:")
 
-    for { _ ← 0 until 100 } {
+    for { _ ← 0 until 10 } {
       val d = data()
       val observations = d.map { x ⇒ result.observe(x) }
       val newModel = model.update(observations)

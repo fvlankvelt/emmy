@@ -69,7 +69,7 @@ class CategoricalSamplerSpec extends FlatSpec {
     }
     // 3/2, 2/3
     // (3/2) / (2/3) = 9/4 ~ 2.25
-    assert(abs(newSampler.thetas(0) - p_zero) < 0.05)
+    assert(abs(newSampler.thetas(0) - p_zero) < 0.10)
     //    assert(abs(newSampler.mu - 1.0) < 0.01)
   }
 
