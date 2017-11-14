@@ -12,8 +12,11 @@ trait SelectFactor[U[_], V, S] extends Factor with Node {
 
   def logs: Seq[Expression[Id, Double, Any]]
 
-  override def logp(): Expression[Scalaz.Id, Double, Any] = {
+  override val logp: Expression[Scalaz.Id, Double, Any] = {
+    val self = this
     new Expression[Id, Double, Any] {
+
+      override def parents = (logs: Seq[Node]) :+ self
 
       override implicit val ops: Aux[Scalaz.Id, Shape] =
         ContainerOps.idOps
@@ -33,6 +36,8 @@ trait SelectFactor[U[_], V, S] extends Factor with Node {
         val idx = gc(index)
         gc(logs(idx), v)
       }
+
+      override def toString = s"logp($self)"
     }
   }
 
@@ -51,7 +56,7 @@ trait Select[U[_], V, S] extends Distribution[U, V, S] {
 
     def observations: Seq[Variable[U, V, S]]
 
-    override val logs = observations.map(_.logp())
+    override val logs = observations.map(_.logp)
 
     override val parents: Seq[Node] =
       observations.flatMap(_.parents) :+ index
@@ -81,7 +86,7 @@ trait Select[U[_], V, S] extends Distribution[U, V, S] {
 
       override val index = sIndex
 
-      override val logs = observations.map(_.logp())
+      override val logs = observations.map(_.logp)
 
       override val parents: Seq[Node] =
         observations.flatMap(_.parents) :+ index
@@ -94,6 +99,8 @@ trait Select[U[_], V, S] extends Distribution[U, V, S] {
 
       override def value: Evaluable[U[V]] =
         data
+
+      override def toString = s"select($multi, $data)"
     }
   }
 }

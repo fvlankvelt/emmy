@@ -1,6 +1,6 @@
 package emmy.inference.aevb
 
-import emmy.autodiff.{ Constant, ContinuousVariable, Evaluable, EvaluationContext, Expression, GradientContext, ValueOps, log, sum }
+import emmy.autodiff.{ Constant, ContinuousVariable, Evaluable, EvaluationContext, Expression, GradientContext, ValueOps, Visitor, log, sum }
 import emmy.inference.Sampler
 
 import scalaz.Scalaz.Id
@@ -12,6 +12,10 @@ class ContinuousSampler[U[_], S](
 ) extends Sampler {
 
   // @formatter:off
+  override val parents = Seq(variable)
+
+  override def visit[R](visitor: Visitor[R]) = visitor.visitSampler(this)
+
   /**
    * Update (\mu, \sigma) by taking a natural gradient step of size \rho.
    * The value is decomposed as \value = \mu + \epsilon * \sigma.
@@ -31,11 +35,17 @@ class ContinuousSampler[U[_], S](
    * mean too far from it's current value.  The scale is set by the stddev.
    */
   // @formatter:on
-  def update(logP: Expression[Id, Double, Any], gc: GradientContext, rho: Double): (ContinuousSampler[U, S], Double) = {
+  def update(logP: Seq[Expression[Id, Double, Any]], gc: GradientContext, rho: Double): (ContinuousSampler[U, S], Double) = {
     val vt = variable.vt(gc)
     val value = gc(variable)
     implicit val ops = variable.ops
-    val gradP = gc(logP, variable).get
+    val gradients = logP.flatMap {
+      gc(_, variable)
+    }
+    if (gradients.isEmpty) {
+      return (this, 0.0)
+    }
+    val gradP = gradients.reduce(vt.plus)
     val gradQ = gradValue(value, vt)
     val gradDelta = vt.minus(gradP, gradQ)
     val scaledDelta = vt.tanh(
@@ -80,7 +90,7 @@ class ContinuousSampler[U[_], S](
     ops.foldLeft(vt.abs(vt.div(vt.minus(mu, other.mu), sigma)))(0.0)(_ + _)
   }
 
-  def logp(): Expression[Id, Double, Any] = {
+  override val logp: Expression[Id, Double, Any] = {
     implicit val vt = variable.vt
     implicit val ops = variable.ops
     val x = (variable - Constant(mu)) / Constant(sigma)

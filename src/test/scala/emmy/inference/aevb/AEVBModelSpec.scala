@@ -2,6 +2,7 @@ package emmy.inference.aevb
 
 import breeze.linalg.DenseVector
 import breeze.numerics.abs
+import emmy.TestVariable
 import emmy.autodiff._
 import emmy.distribution._
 import org.scalatest.FlatSpec
@@ -9,9 +10,34 @@ import org.scalatest.FlatSpec
 import scala.util.Random
 import scalaz.Scalaz.Id
 
+class TestNode(override val parents: Seq[Node]) extends Node {
+  override def toString = s"node(${parents.mkString(",")})"
+}
+
+object TestNode {
+  def apply(parents: Node*) = new TestNode(parents.toSeq)
+}
+
 class AEVBModelSpec extends FlatSpec {
 
-  "The AEVB model" should "update mu for each (minibatch of) data point(s)" in {
+  "The AEVB model" should "collect node graph" in {
+    val variable = TestVariable(1.0)
+    val graph = TestNode(
+      TestNode(
+        variable
+      ),
+      TestNode(
+        variable
+      )
+    )
+    val (nodes, _, _, deps) =
+      AEVBModel.collectVars(Set.empty, Set.empty, Seq.empty, Seq(graph))
+    assert(nodes.size == 4)
+    assert(deps.size == 1)
+    assert(deps(variable).size == 4)
+  }
+
+  it should "update mu for each (minibatch of) data point(s)" in {
     val mu = Normal(0.0, 1.0).sample
 
     val initialModel = AEVBModel(Seq(mu))

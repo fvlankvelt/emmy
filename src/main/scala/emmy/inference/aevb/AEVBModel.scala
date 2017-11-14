@@ -1,7 +1,7 @@
 package emmy.inference.aevb
 
-import emmy.autodiff.{ CategoricalVariable, Constant, ContinuousVariable, EvaluationContext, Expression, Node, Variable, Visitor }
-import emmy.distribution.Observation
+import emmy.autodiff._
+import emmy.distribution.{ Factor, Observation }
 import emmy.inference._
 
 import scala.annotation.tailrec
@@ -23,7 +23,8 @@ class AEVBSamplersModel(globalVars: Map[Node, Sampler]) extends Model {
 
 class AEVBModel private[AEVBModel] (
     nodes:      Set[Node],
-    globalVars: Map[Node, Sampler]
+    globalVars: Map[Node, Sampler],
+    globalDeps: Map[Node, Set[Node]]
 )
   extends AEVBSamplersModel(globalVars) {
 
@@ -34,11 +35,13 @@ class AEVBModel private[AEVBModel] (
   override def update[U[_], V, S](observations: Seq[Observation[U, V, S]]) = {
 
     // find new nodes, new variables & their (log) probability
-    val (_, samplerBuilders, logp) = collectVars(
+    val (knownNodes, samplerBuilders, factors, deps) = collectVars(
       nodes,
       Set.empty[SamplerBuilder],
-      Constant(0.0),
-      observations
+      Seq.empty,
+      observations ++ globalVars.values,
+      Seq.empty,
+      globalDeps
     )
 
     // initialize new variables by sampling their prior
@@ -56,32 +59,51 @@ class AEVBModel private[AEVBModel] (
     //
     // Add the log prior of global variables to get the full
     // objective function to optimize
-    val totalLogP = globalVars.values.foldLeft(logp) {
-      case (curLogp, variable) ⇒
-        curLogp + variable.asInstanceOf[Sampler].logp()
-    }
+    val logP = factors.map { factor ⇒
+      (factor: Node) -> factor.logp
+    }.toMap
+
+    // traverse the logp graphs to collect additional nodes
+    val (_, _, _, fullDeps) = collectVars(
+      knownNodes,
+      Set.empty,
+      Seq.empty,
+      logP.values.toSeq,
+      Seq.empty,
+      deps
+    )
 
     // update variables by taking observations into account
     val samplers = (globalVars ++ localVars).map {
-      _._2.asInstanceOf[Sampler]
+      case (variable, sampler) ⇒
+        val dependencies = deps.getOrElse(variable, Set.empty)
+        val filtered = logP.flatMap {
+          case (factor, logp) ⇒
+            if (dependencies.contains(factor)) Some(logp) else None
+        }
+        (
+          sampler.asInstanceOf[Sampler],
+          filtered.toSeq
+        )
     }
 
     @tailrec
-    def iterate(iter: Int, samplers: Iterable[Sampler]): Iterable[Sampler] = {
-      val variables = samplers.map { s ⇒ s.variable -> s }.toMap
+    def iterate(iter: Int, samplers: Iterable[(Sampler, Seq[Expression[Id, Double, Any]])]): Iterable[Sampler] = {
+      val variables = samplers.map { s ⇒ s._1.variable -> s._1 }.toMap
       val rho = 1.0 / (iter + 1)
       val model = new AEVBSamplersModel(variables)
-      val gc = new ModelGradientContext(model)
+      val gc = new ModelGradientContext(model, fullDeps)
       val updatedWithDelta = samplers.map { sampler ⇒
-        sampler.update(totalLogP, gc, rho)
-      }.toMap[Sampler, Double]
+        val (newSampler, delta) = sampler._1.update(sampler._2, gc, rho)
+        ((newSampler, sampler._2), delta)
+      }
 
-      val totalDelta = updatedWithDelta.values.sum
+      val totalDelta = updatedWithDelta.map(_._2).sum
       if (totalDelta < 0.0001) {
-        updatedWithDelta.keys
+        updatedWithDelta.map(_._1._1)
       }
       else {
-        iterate(iter + 1, updatedWithDelta.keys)
+        iterate(iter + 1, updatedWithDelta.map(_._1))
       }
     }
 
@@ -93,7 +115,8 @@ class AEVBModel private[AEVBModel] (
         globalVars.contains(sampler.variable)
       }.map { sampler ⇒
         (sampler.variable: Node) -> sampler
-      }.toMap
+      }.toMap,
+      globalDeps
     )
   }
 
@@ -109,10 +132,10 @@ object AEVBModel {
   def apply(global: Seq[Node]): AEVBModel = {
 
     // find new nodes, new variables & their (log) probability
-    val (_, builders, logp) = collectVars(
+    val (_, builders, _, globalDeps) = collectVars(
       Set.empty,
       Set.empty[SamplerBuilder],
-      0.0,
+      Seq.empty,
       global
     )
 
@@ -123,7 +146,7 @@ object AEVBModel {
       }
     })
 
-    new AEVBModel(global.toSet, globalSamplers)
+    new AEVBModel(global.toSet, globalSamplers, globalDeps)
   }
 
   private[AEVBModel] def initialize(
@@ -147,35 +170,94 @@ object AEVBModel {
     }.toMap
   }
 
-  private[AEVBModel] def collectVars(
+  private[aevb] def collectVars(
     visited: Set[Node],
     vars:    Set[SamplerBuilder],
-    lp:      Expression[Id, Double, Any],
-    nodes:   Seq[Node]
-  ): (Set[Node], Set[SamplerBuilder], Expression[Id, Double, Any]) = {
-    nodes.foldLeft((visited, vars, lp)) {
-      case ((curvis, curvars, curlogp), p) ⇒
+    factors: Seq[Factor],
+    nodes:   Seq[Node],
+    // stack of nodes, from the end result down
+    stack: Seq[Node] = Seq.empty,
+    // set of expressions that depend on a variable, by variable
+    deps: Map[Node, Set[Node]] = Map.empty
+  ): (Set[Node], Set[SamplerBuilder], Seq[Factor], Map[Node, Set[Node]]) = {
+    nodes.foldLeft((visited, vars, factors, deps)) {
+      case ((curvis, curvars, curFactors, curdeps), p) ⇒
+        //        print(stack.map(_ => "    ").mkString("") + p.toString)
         if (curvis.contains(p)) {
-          (curvis, curvars, curlogp)
+          //          println(": FOUND")
+          val newdeps = curdeps.map {
+            case (variable, dependants) ⇒
+              if (dependants.contains(p)) {
+                variable -> (dependants ++ stack.toSet)
+              }
+              else {
+                variable -> dependants
+              }
+          }
+          (
+            curvis,
+            curvars,
+            curFactors,
+            newdeps
+          )
         }
         else {
-          p.visit(new Visitor[(Set[Node], Set[SamplerBuilder], Expression[Id, Double, Any])] {
+          //          println(": NEW")
+          p.visit(new Visitor[(Set[Node], Set[SamplerBuilder], Seq[Factor], Map[Node, Set[Node]])] {
 
             override def visitObservation[U[_], V, S](o: Observation[U, V, S]) = {
-              collectVars(curvis + p, curvars, curlogp + o.logp(), p.parents)
+              collectVars(
+                curvis + p,
+                curvars,
+                curFactors :+ o,
+                p.parents,
+                stack :+ p,
+                curdeps
+              )
+            }
+
+            override def visitSampler(o: Sampler) = {
+              collectVars(
+                curvis + p,
+                curvars,
+                curFactors :+ o,
+                p.parents,
+                stack :+ p,
+                curdeps
+              )
             }
 
             override def visitContinuousVariable[U[_], S](v: ContinuousVariable[U, S]) = {
-              collectVars(curvis + p, curvars + ContinuousSamplerBuilder(v), curlogp + v.logp(), p.parents)
+              collectVars(
+                curvis + p,
+                curvars + ContinuousSamplerBuilder(v),
+                curFactors :+ v,
+                p.parents,
+                stack :+ p,
+                curdeps + (p -> (stack.toSet + v))
+              )
             }
 
             override def visitCategoricalVariable(v: CategoricalVariable) = {
-              collectVars(curvis + p, curvars + CategoricalSamplerBuilder(v), curlogp + v.logp(), p.parents)
+              collectVars(
+                curvis + p,
+                curvars + CategoricalSamplerBuilder(v),
+                curFactors :+ v,
+                p.parents,
+                stack :+ p,
+                curdeps + (p -> (stack.toSet + v))
+              )
             }
 
-            override def visitNode(n: Node) = {
-              collectVars(curvis + n, curvars, curlogp, n.parents)
-            }
+            override def visitNode(n: Node) =
+              collectVars(
+                curvis + n,
+                curvars,
+                curFactors,
+                n.parents,
+                stack :+ p,
+                curdeps
+              )
 
           })
         }

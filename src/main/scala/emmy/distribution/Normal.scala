@@ -14,10 +14,10 @@ trait NormalFactor[U[_], S] extends Factor with Node {
 
   override def parents = Seq(mu, sigma)
 
-  override def logp(): Expression[Id, Double, Any] = {
+  override lazy val logp: Expression[Id, Double, Any] = {
     implicit val ops = variable.ops
     val x = (variable - mu) / sigma
-    sum(-(log(sigma) + x * x / 2.0)).toDouble()
+    sum(-(log(sigma) + x * x / 2.0)).toDouble
   }
 }
 

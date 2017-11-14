@@ -21,7 +21,7 @@ class ContinuousSamplerSpec extends FlatSpec {
       case (s, _) ⇒
         val model = new AEVBSamplersModel(Map((variable: Node) -> s))
         val gc = new ModelGradientContext(model)
-        s.update(logp, gc, 1.0)._1
+        s.update(Seq(logp), gc, 1.0)._1
     }
     assert(abs(newSampler.mu - 1.0) < 0.01)
   }
@@ -36,21 +36,21 @@ class ContinuousSamplerSpec extends FlatSpec {
       case (s, _) ⇒
         val model = new AEVBSamplersModel(Map((variable: Node) -> s))
         val gc = new ModelGradientContext(model)
-        s.update(logp, gc, 1.0)._1
+        s.update(Seq(logp), gc, 1.0)._1
     }
     assert(abs(newSampler.sigma - 2.0) < 0.01)
   }
 
   it should "reconstruct normal sample parameters" in {
     val variable = Normal(1.0, 2.0).sample
-    val logp = variable.logp()
+    val logp = variable.logp
 
     val sampler = new ContinuousSampler[Id, Any](variable, 0.0, 0.5)
     val newSampler = (0 until 200).foldLeft(sampler) {
       case (s, _) ⇒
         val model = new AEVBSamplersModel(Map((variable: Node) -> s))
         val gc = new ModelGradientContext(model)
-        s.update(logp, gc, 1.0)._1
+        s.update(Seq(logp), gc, 1.0)._1
     }
     assert(abs(newSampler.mu - 1.0) < 0.01)
     assert(abs(newSampler.sigma - 2.0) < 0.01)

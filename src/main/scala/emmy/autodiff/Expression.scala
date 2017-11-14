@@ -2,8 +2,11 @@ package emmy.autodiff
 
 import emmy.autodiff.ContainerOps.Aux
 import emmy.distribution.Observation
+import emmy.inference.Sampler
 
 trait Visitor[R] {
+
+  def visitSampler(o: Sampler): R
 
   def visitObservation[U[_], V, S](o: Observation[U, V, S]): R
 
@@ -21,6 +24,8 @@ trait Node {
   }
 
   def parents: Seq[Node] = Seq.empty
+
+  override lazy val hashCode = super.hashCode()
 }
 
 trait Evaluable[+V] {
@@ -94,9 +99,11 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
       }
     })
 
-  def toDouble(): Expression[U, Double, S] = {
+  lazy val toDouble: Expression[U, Double, S] = {
     val self = this
     new Expression[U, Double, S] {
+
+      override val parents = Seq(self)
 
       override implicit val ops: Aux[U, Shape] = self.ops
 
@@ -116,6 +123,8 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
       override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): Option[Gradient[W, U]] = {
         self.grad(gc, v)
       }
+
+      override def toString = s"double($self)"
     }
   }
 

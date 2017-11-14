@@ -20,7 +20,7 @@ class CategoricalSamplerSpec extends FlatSpec {
 
     override def apply(ec: EvaluationContext) = value
 
-    override def logp() = ???
+    override def logp = ???
 
     override val vt = Evaluable.fromConstant(ValueOps(Floating.intFloating, ops, ops.shapeOf(value)))
 
@@ -60,7 +60,7 @@ class CategoricalSamplerSpec extends FlatSpec {
       case (s, idx) ⇒
         val model = new AEVBSamplersModel(Map((variable: Node) -> s))
         val gc = new ModelGradientContext(model)
-        val update = s.update(logp, gc, 1.0 / (idx + 1))
+        val update = s.update(Seq(logp), gc, 1.0 / (idx + 1))
         //        if (idx % 80 == 0) {
         //          println()
         //        }

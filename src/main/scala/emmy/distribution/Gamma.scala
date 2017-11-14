@@ -13,8 +13,8 @@ trait GammaFactor[U[_], S] extends Factor {
 
   override def parents = Seq(alpha, beta)
 
-  override def logp(): Expression[Id, Double, Any] = {
-    sum(alpha * log(beta) + (alpha - 1.0) * log(this) - beta * this - lgamma(alpha)).toDouble()
+  override val logp: Expression[Id, Double, Any] = {
+    sum(alpha * log(beta) + (alpha - 1.0) * log(this) - beta * this - lgamma(alpha)).toDouble
   }
 }
 

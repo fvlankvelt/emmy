@@ -13,10 +13,14 @@ trait CategoricalFactor extends Factor with Node {
 
   def thetas: Expression[IndexedSeq, Double, Int]
 
-  override def parents = Seq(thetas)
+  override def parents: Seq[Node] = Seq(thetas)
 
-  override def logp(): Expression[Id, Double, Any] = {
+  override val logp: Expression[Id, Double, Any] = {
+    val self = this
     new Expression[Id, Double, Any] {
+
+      override val parents = Seq(self)
+
       override implicit val ops: Aux[Scalaz.Id, Shape] =
         ContainerOps.idOps
 
@@ -42,6 +46,10 @@ trait CategoricalFactor extends Factor with Node {
             ug(index) / theta - ug.sum / thetaSum
           }
         }
+      }
+
+      override def toString = {
+        s"logp($self)"
       }
     }
   }
@@ -76,7 +84,7 @@ class CategoricalSample(val thetas: Expression[IndexedSeq, Double, Int])(implici
   }
 
   override def toString: String = {
-    s"<- Cat($thetas)"
+    s"~ Cat($thetas)"
   }
 
 }

@@ -1,6 +1,6 @@
 package emmy.distribution
 
-import emmy.autodiff.{ ConstantLike, Expression, Variable, Visitor }
+import emmy.autodiff.{ ConstantLike, Expression, Node, Variable, Visitor }
 
 import scalaz.Scalaz.Id
 
@@ -11,9 +11,9 @@ trait Distribution[U[_], V, S] {
   def observe(data: U[V]): Observation[U, V, S]
 }
 
-trait Factor {
+trait Factor extends Node {
 
-  def logp(): Expression[Id, Double, Any]
+  def logp: Expression[Id, Double, Any]
 }
 
 trait Observation[U[_], V, S] extends ConstantLike[U, V, S] with Factor {

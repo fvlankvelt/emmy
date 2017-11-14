@@ -31,6 +31,10 @@ class CategoricalSampler(
       override val variable = v
 
       override val thetas = Constant(t)
+
+      override val parents = Seq(variable)
+
+      override def toString = s"sampler($variable)"
     }
   }
 
@@ -44,13 +48,13 @@ class CategoricalSampler(
    * The constant is tracked to speed up convergence - still needs to be verified though
    */
   //@formatter:on
-  def update(logP: Expression[Id, Double, Any], eval: GradientContext, rho: Double): (CategoricalSampler, Double) = {
+  def update(logP: Seq[Expression[Id, Double, Any]], eval: GradientContext, rho: Double): (CategoricalSampler, Double) = {
     val index = eval(variable)
     val gradLogQ = gradLogTheta(index)
-    val lp = eval(logP)
+    val lp = logP.map(eval(_)).sum
     val newOffset = (1.0 - rho) * offset + rho * lp
 
-    val deltaLog = eval(logp()) - (lp - newOffset)
+    val deltaLog = eval(logp) - (lp - newOffset)
     val newThetas = (thetas zip gradLogQ).map {
       case (theta, grad) ⇒
         val dLogTheta = -grad * rho * deltaLog
@@ -87,19 +91,21 @@ class CategoricalSampler(
   /**
    * Log probability of the variable, to be used as the prior distribution in a streaming variational approximation.
    */
-  def logp(): Expression[Id, Double, Any] = {
-    Q.logp()
+  val logp: Expression[Id, Double, Any] = {
+    Q.logp
   }
 
   // draw from P?
   def sample(ec: EvaluationContext): Int = {
     val sumThetas = thetas.sum
     var draw = Random.nextDouble() * sumThetas
-    for { (theta, idx) ← thetas.zipWithIndex } {
+    var idx = 0
+    for { theta ← thetas } {
       if (theta > draw) {
         return idx
       }
       draw -= theta
+      idx += 1
     }
     throw new UnsupportedOperationException("Uniform draw is larger than 1.0")
   }

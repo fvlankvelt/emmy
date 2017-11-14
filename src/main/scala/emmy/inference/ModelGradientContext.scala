@@ -1,12 +1,12 @@
 package emmy.inference
 
 import emmy.autodiff.ContainerOps.Aux
-import emmy.autodiff.{ CategoricalVariable, ContinuousVariable, Expression, GradientContext, Variable }
+import emmy.autodiff.{ CategoricalVariable, ContinuousVariable, Expression, GradientContext, Node, Variable }
 
 import scala.collection.mutable
 import scalaz.Scalaz.Id
 
-class ModelGradientContext(model: Model) extends GradientContext {
+class ModelGradientContext(model: Model, deps: Map[Node, Set[Node]] = Map.empty) extends GradientContext {
 
   private val modelSample = model.sample(this)
   private val cache = mutable.HashMap[AnyRef, Any]()
@@ -29,6 +29,19 @@ class ModelGradientContext(model: Model) extends GradientContext {
     n: Expression[U, V, S],
     v: ContinuousVariable[W, T]
   )(implicit wOps: Aux[W, T]): Option[W[U[Double]]] = {
-    n.grad(this, v)
+    val eval = deps.get(v).forall {
+      _.contains(n)
+    }
+    if (eval) {
+      n.grad(this, v)
+    }
+    else {
+      None
+    }
+    //    val result = n.grad(this, v)
+    //    if (!eval && result.isDefined) {
+    //      throw new Exception("Expression is not evaluated, but should be")
+    //    }
+    //    result
   }
 }
