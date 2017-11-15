@@ -38,10 +38,12 @@ class ModelGradientContext(model: Model, deps: Map[Node, Set[Node]] = Map.empty)
     else {
       None
     }
-    //    val result = n.grad(this, v)
-    //    if (!eval && result.isDefined) {
-    //      throw new Exception("Expression is not evaluated, but should be")
-    //    }
-    //    result
+    /*
+    val result = n.grad(this, v)
+    if (!eval && result.isDefined) {
+      throw new Exception("Expression is not evaluated, but should be")
+    }
+    result
+    */
   }
 }

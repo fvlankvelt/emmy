@@ -8,6 +8,8 @@ case class LiftedContainer[U[_], V, S](value: U[Expression[Id, V, Any]])(implici
                                                                          val ops: ContainerOps.Aux[U, S]
 ) extends Expression[U, V, S] {
 
+  override val parents = ops.foldLeft(value)(Seq.empty[Node]) { case (acc, expr) ⇒ acc :+ expr }
+
   override implicit val so: ScalarOps[U[Double], U[V]] = ScalarOps.liftBoth(soo, ops)
 
   override implicit val vt: Evaluable[ValueOps[U, V, S]] = {

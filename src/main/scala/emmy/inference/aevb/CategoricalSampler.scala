@@ -1,7 +1,7 @@
 package emmy.inference.aevb
 
 import breeze.numerics.abs
-import emmy.autodiff.{ CategoricalVariable, Constant, ConstantLike, ContinuousVariable, EvaluationContext, Expression, GradientContext }
+import emmy.autodiff._
 import emmy.distribution.CategoricalFactor
 import emmy.inference.Sampler
 
@@ -37,6 +37,8 @@ class CategoricalSampler(
       override def toString = s"sampler($variable)"
     }
   }
+
+  override def visit[R](visitor: Visitor[R]) = visitor.visitSampler(this)
 
   //@formatter:off
   /**
