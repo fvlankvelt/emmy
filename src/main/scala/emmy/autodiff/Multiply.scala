@@ -12,35 +12,45 @@ case class Multiply[U[_], V, S](
 
   override val parents = Seq(lhs, rhs)
 
-  override def apply(ec: EvaluationContext) = {
-    vt(ec).times(ec(lhs), ec(rhs))
+  override def eval(ec: GradientContext) = {
+    val cLhs = ec(lhs)
+    val cRhs = ec(rhs)
+    ctx => {
+      vt(ctx).times(cLhs(ctx), cRhs(ctx))
+    }
   }
 
-  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) =
+  override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]) = {
+    val wOps = v.ops
+    val rv = gc(rhs)
+    val lv = gc(lhs)
     (gc(lhs, v), gc(rhs, v)) match {
       case (None, None) ⇒ None
       case (Some(leftg), None) ⇒
-        val rv = gc(rhs)
-        Some(wOps.map(leftg) { lg ⇒
-          so.times(lg, rv)
-        })
+        Some { ctx =>
+          wOps.map(leftg(ctx)) { lg ⇒
+            so.times(lg, rv(ctx))
+          }
+        }
       case (None, Some(rightg)) ⇒
-        val lv = gc(lhs)
-        Some(wOps.map(rightg) { rg ⇒
-          so.times(rg, lv)
-        })
+        Some { ctx =>
+          wOps.map(rightg(ctx)) { rg ⇒
+            so.times(rg, lv(ctx))
+          }
+        }
       case (Some(leftg), Some(rightg)) ⇒
-        val lv = gc(lhs)
-        val rv = gc(rhs)
-        val valT = vt(gc).forDouble
-        Some(wOps.zipMap(leftg, rightg) {
-          (lg, rg) ⇒
-            valT.plus(
-              so.times(lg, rv),
-              so.times(rg, lv)
-            )
-        })
+        Some { ctx =>
+          val valT = vt(ctx).forDouble
+          wOps.zipMap(leftg(ctx), rightg(ctx)) {
+            (lg, rg) ⇒
+              valT.plus(
+                so.times(lg, rv(ctx)),
+                so.times(rg, lv(ctx))
+              )
+          }
+        }
     }
+  }
 
   override def toString: String = {
     "(" + lhs + " * " + rhs + ")"

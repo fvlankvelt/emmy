@@ -4,15 +4,24 @@ import emmy.autodiff.ContainerOps.Aux
 import emmy.distribution.Observation
 import emmy.inference.Sampler
 
+import scalaz.Scalaz.Id
+
 trait Visitor[R] {
 
-  def visitSampler(o: Sampler): R
+  def visitParameter[U[_], S](o: Parameter[U, S]): R =
+    visitNode(o)
 
-  def visitObservation[U[_], V, S](o: Observation[U, V, S]): R
+  def visitSampler(o: Sampler): R =
+    visitNode(o)
 
-  def visitContinuousVariable[U[_], S](v: ContinuousVariable[U, S]): R
+  def visitObservation[U[_], V, S](o: Observation[U, V, S]): R =
+    visitNode(o)
 
-  def visitCategoricalVariable(v: CategoricalVariable): R
+  def visitContinuousVariable[U[_], S](v: ContinuousVariable[U, S]): R =
+    visitNode(v)
+
+  def visitCategoricalVariable(v: CategoricalVariable): R =
+    visitNode(v)
 
   def visitNode(n: Node): R
 }
@@ -31,11 +40,11 @@ trait Node {
 trait Evaluable[+V] {
   self ⇒
 
-  def apply(ec: EvaluationContext): V
+  def apply(ec: SampleContext): V
 
   def map[W](fn: V ⇒ W): Evaluable[W] = new Evaluable[W] {
 
-    override def apply(ec: EvaluationContext): W = {
+    override def apply(ec: SampleContext): W = {
       fn(self(ec))
     }
 
@@ -50,25 +59,29 @@ object Evaluable {
 
   implicit def fromConstant[V](value: V): Evaluable[V] = new Evaluable[V] {
 
-    override def apply(ec: EvaluationContext): V = value
+    override def apply(ec: SampleContext): V = value
 
     override def toString() = {
       s"eval($value)"
     }
   }
+
+  implicit def fromFn[V](fn: SampleContext => V) = new Evaluable[V] {
+    override def apply(ec: SampleContext) = fn(ec)
+  }
 }
 
-trait EvaluationContext {
+case class SampleContext(seed: Int, iteration: Int)
 
-  def apply[U[_], V, S](n: Expression[U, V, S]): U[V]
+trait GradientContext {
+
+  def apply[U[_], V, S](n: Expression[U, V, S]): Evaluable[U[V]]
+
+  def apply[W[_], U[_], V, T, S](n: Expression[U, V, S],
+                                 v: Parameter[W, T]): Gradient[W, U]
 }
 
-trait GradientContext extends EvaluationContext {
-
-  def apply[W[_], U[_], V, T, S](n: Expression[U, V, S], v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Option[W[U[Double]]]
-}
-
-trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
+trait Expression[U[_], V, S] extends Node {
 
   type Shape = S
 
@@ -78,22 +91,21 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
 
   implicit def vt: Evaluable[ValueOps[U, V, S]]
 
-  def apply(ec: EvaluationContext): U[V]
+  def eval(ec: GradientContext): Evaluable[U[V]]
 
-  def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]): Option[Gradient[W, U]] = {
-    None
-  }
+  def grad[W[_], T](gc: GradientContext,
+                    v: Parameter[W, T]): Gradient[W, U] = None
 
   def unary_-(): Expression[U, V, S] =
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       override def name: String = "neg"
 
-      override def grad(gc: GradientContext, v: V) = {
+      override def grad(gc: SampleContext, v: V) = {
         val valueVT = vt(gc).valueVT
         valueVT.negate(valueVT.one)
       }
 
-      override def apply(ec: EvaluationContext, v: V) = {
+      override def apply(ec: SampleContext, v: V) = {
         val vvt = vt(ec).valueVT
         vvt.negate(v)
       }
@@ -114,13 +126,17 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
 
       override implicit val so = ScalarOps.liftBoth[U, Double, Double](ScalarOps.doubleOps, ops)
 
-      override def apply(ec: EvaluationContext): U[Double] = {
-        val valT = self.vt(ec).valueVT
-        val up = self.apply(ec)
-        ops.map(up)(valT.toDouble)
+      override def eval(ec: GradientContext): Evaluable[U[Double]] = {
+        val up = self.eval(ec)
+        ctx => {
+          val valueOps = self.vt(ctx)
+          val upVal = up(ctx)
+          val valT = valueOps.valueVT
+          ops.map(upVal)(valT.toDouble)
+        }
       }
 
-      override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]): Option[Gradient[W, U]] = {
+      override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]) = {
         self.grad(gc, v)
       }
 
@@ -151,10 +167,10 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       val name = s"${value} *"
 
-      override def grad(gc: GradientContext, v: V) =
+      override def grad(gc: SampleContext, v: V) =
         sOps.times(vt(gc).valueVT.one, value)
 
-      override def apply(ec: EvaluationContext, v: V) =
+      override def apply(ec: SampleContext, v: V) =
         sOps.times(v, value)
     })
 
@@ -162,10 +178,10 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       val name = s"inv(${value})*"
 
-      override def grad(gc: GradientContext, v: V) =
+      override def grad(gc: SampleContext, v: V) =
         sOps.div(vt(gc).valueVT.one, value)
 
-      override def apply(ec: EvaluationContext, v: V) =
+      override def apply(ec: SampleContext, v: V) =
         sOps.div(v, value)
     })
 
@@ -173,10 +189,10 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       val name = s"${rhs}+"
 
-      override def grad(gc: GradientContext, v: V) =
+      override def grad(gc: SampleContext, v: V) =
         vt(gc).valueVT.one
 
-      override def apply(ec: EvaluationContext, v: V) =
+      override def apply(ec: SampleContext, v: V) =
         sOps.plus(v, rhs)
     })
   }
@@ -185,10 +201,10 @@ trait Expression[U[_], V, S] extends Node with Evaluable[U[V]] {
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
       val name = s"-${rhs}+"
 
-      override def grad(gc: GradientContext, v: V) =
+      override def grad(gc: SampleContext, v: V) =
         vt(gc).valueVT.one
 
-      override def apply(ec: EvaluationContext, v: V) =
+      override def apply(ec: SampleContext, v: V) =
         sOps.minus(v, rhs)
     })
   }

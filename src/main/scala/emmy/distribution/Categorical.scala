@@ -30,20 +30,29 @@ trait CategoricalFactor extends Factor with Node {
       override implicit def vt: Evaluable[ValueOps[Scalaz.Id, Double, Any]] =
         ValueOps.idOps(Floating.doubleFloating)
 
-      override def apply(ec: EvaluationContext): Scalaz.Id[Double] = {
-        val index = ec(variable)
-        val thetav = ec(thetas)
-        Floating.doubleFloating.log(thetav(index) / thetav.sum)
+      override def eval(ec: GradientContext): Evaluable[Scalaz.Id[Double]] = {
+        val cIndex = ec(variable)
+        val cThetas = ec(thetas)
+        ctx => {
+          val eIndex = cIndex(ctx)
+          val eThetas = cThetas(ctx)
+          Floating.doubleFloating.log(eThetas(eIndex) / eThetas.sum)
+        }
       }
 
-      override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]) = {
+      override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]) = {
+        val wOps = v.ops
         gc(thetas, v).map { g ⇒
-          val index = gc(variable)
-          val thetav = gc(thetas)
-          val theta = thetav(index)
-          val thetaSum = thetav.sum
-          wOps.map(g) { ug ⇒
-            ug(index) / theta - ug.sum / thetaSum
+          val cIndex = gc(variable)
+          val cThetas = gc(thetas)
+          ctx => {
+            val eIndex = cIndex(ctx)
+            val eThetas = cThetas(ctx)
+            val theta = eThetas(eIndex)
+            val thetaSum = eThetas.sum
+            wOps.map(g(ctx)) { ug ⇒
+              ug(eIndex) / theta - ug.sum / thetaSum
+            }
           }
         }
       }
@@ -71,16 +80,17 @@ class CategoricalSample(val thetas: Expression[IndexedSeq, Double, Int])(implici
 
   override val K: Evaluable[Int] = thetas.vt.map(_.shape)
 
-  override def apply(ec: EvaluationContext): Int = {
-    val thetasV = ec(thetas)
-    val sumThetas = thetasV.sum
-    var draw = Random.nextDouble() * sumThetas
-    for { (theta, idx) ← thetasV.zipWithIndex } {
-      if (theta > draw)
-        return idx
-      draw -= theta
+  override def eval(ec: GradientContext): Evaluable[Int] = {
+    ec(thetas).map { eThetas =>
+      val sumThetas = eThetas.sum
+      var draw = Random.nextDouble() * sumThetas
+      for {(theta, idx) ← eThetas.zipWithIndex} {
+        if (theta > draw)
+          return idx
+        draw -= theta
+      }
+      throw new UnsupportedOperationException("Uniform draw is larger than 1.0")
     }
-    throw new UnsupportedOperationException("Uniform draw is larger than 1.0")
   }
 
   override def toString: String = {

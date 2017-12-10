@@ -12,16 +12,6 @@ trait ContinuousVariable[U[_], S] extends Variable[U, Double, S] {
     visitor.visitContinuousVariable(this)
   }
 
-  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
-    if (this == v) {
-      val shape = wOps.shapeOf(gc(v))
-      val valT = vt(gc)
-      Some(wOps.eye(shape, valT.valueVT.one, valT.valueVT.zero).asInstanceOf[Gradient[W, U]])
-    }
-    else {
-      None
-    }
-  }
 }
 
 trait CategoricalVariable extends Variable[Id, Int, Any] {

@@ -6,18 +6,19 @@ trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
 
   def value: Evaluable[U[V]]
 
-  override def apply(ec: EvaluationContext) =
-    value(ec)
+  override def eval(ec: GradientContext): Evaluable[U[V]] =
+    value
 
   override def toString: String =
     value.toString
 }
 
-case class Constant[U[_], V, S](value: Evaluable[U[V]])(implicit
-    val fl: Floating[V],
-                                                        val so:  ScalarOps[U[Double], U[V]],
-                                                        val ops: ContainerOps.Aux[U, S]
-)
+case class Constant[U[_], V, S](value: Evaluable[U[V]])
+                               (implicit
+                                val fl: Floating[V],
+                                val so: ScalarOps[U[Double], U[V]],
+                                val ops: ContainerOps.Aux[U, S]
+                               )
   extends ConstantLike[U, V, S] {
 
   override val vt: Evaluable[ValueOps[U, V, S]] =
@@ -32,8 +33,8 @@ case class Constant[U[_], V, S](value: Evaluable[U[V]])(implicit
 object Constant {
 
   def apply[U[_], V, S](value: U[V])(implicit
-    fl: Floating[V],
-                                     so:  ScalarOps[U[Double], U[V]],
+                                     fl: Floating[V],
+                                     so: ScalarOps[U[Double], U[V]],
                                      ops: ContainerOps.Aux[U, S]
   ): Constant[U, V, S] =
     Constant(Evaluable.fromConstant(value))
@@ -41,4 +42,42 @@ object Constant {
   def apply(value: Double): Constant[Id, Double, Any] = {
     Constant[Id, Double, Any](value)(Floating.doubleFloating, ScalarOps.doubleOps, ContainerOps.idOps)
   }
+}
+
+case class Parameter[U[_], S](value: Evaluable[U[Double]])
+                             (implicit
+                              fl: Floating[Double],
+                              val so: ScalarOps[U[Double], U[Double]],
+                              val ops: ContainerOps.Aux[U, S]
+                             )
+  extends ConstantLike[U, Double, S] {
+
+  override def visit[R](visitor: Visitor[R]): R = {
+    visitor.visitParameter(this)
+  }
+
+  override val vt: Evaluable[ValueOps[U, Double, S]] =
+    value.map(toVT)
+
+  private def toVT(v: U[Double]) = {
+    val shape = ops.shapeOf(v)
+    ValueOps(fl, ops, shape)
+  }
+
+  override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]) = {
+    if (this == v) {
+      val value = gc(v)
+      val wOps = v.ops
+      Some { ctx =>
+        val valT = vt(ctx)
+        val ev = value(ctx)
+        val shape = wOps.shapeOf(ev)
+        wOps.eye(shape, valT.valueVT.one, valT.valueVT.zero).asInstanceOf[W[U[Double]]]
+      }
+    }
+    else {
+      None
+    }
+  }
+
 }

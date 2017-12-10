@@ -35,9 +35,13 @@ class NormalSample[U[_], S](
   override val so: ScalarOps[U[Double], U[Double]] =
     ScalarOps.liftBoth[U, Double, Double](ScalarOps.doubleOps, ops)
 
-  override def apply(ec: EvaluationContext): U[Double] = {
-    val valueT = vt(ec)
-    valueT.plus(ec(mu), valueT.times(valueT.rnd, ec(sigma)))
+  override def eval(ec: GradientContext): Evaluable[U[Double]] = {
+    val cMu = ec(mu)
+    val cSigma = ec(sigma)
+    ctx => {
+      val valueT = vt(ctx)
+      valueT.plus(cMu(ctx), valueT.times(valueT.rnd, cSigma(ctx)))
+    }
   }
 
   override def toString: String = {

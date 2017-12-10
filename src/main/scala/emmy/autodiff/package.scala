@@ -4,10 +4,10 @@ import scalaz.Scalaz.Id
 
 package object autodiff {
 
-  type Gradient[W[_], A[_]] = W[A[Double]]
+  type Gradient[W[_], A[_]] = Option[Evaluable[W[A[Double]]]]
 
   implicit def toNode[U[_], V, S](value: U[V])(implicit
-    fl: Floating[V],
+                                               fl: Floating[V],
                                                so:  ScalarOps[U[Double], U[V]],
                                                ops: ContainerOps.Aux[U, S]
   ): Expression[U, V, S] = {
@@ -15,7 +15,7 @@ package object autodiff {
   }
 
   implicit def toIdNode[V](value: V)(implicit
-    fl: Floating[V],
+                                     fl: Floating[V],
                                      so:  ScalarOps[Double, V],
                                      ops: ContainerOps.Aux[Id, Any]
   ): Expression[Id, V, Any] = {
@@ -23,7 +23,7 @@ package object autodiff {
   }
 
   implicit def liftContainer[U[_], V, S](value: U[Expression[Id, V, Any]])(implicit
-    fl: Floating[V],
+                                                                           fl: Floating[V],
                                                                            soo:  ScalarOps[Double, V],
                                                                            opso: ContainerOps.Aux[U, S]
   ): Expression[U, V, S] = {

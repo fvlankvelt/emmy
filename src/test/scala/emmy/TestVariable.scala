@@ -1,6 +1,6 @@
 package emmy
 
-import emmy.autodiff.{ Constant, ContainerOps, ContinuousVariable, Evaluable, EvaluationContext, Floating, ScalarOps, ValueOps }
+import emmy.autodiff.{ Constant, ContainerOps, ContinuousVariable, Evaluable, GradientContext, Floating, ScalarOps, ValueOps }
 
 import scalaz.Scalaz.Id
 
@@ -9,7 +9,7 @@ class TestVariable[U[_], S](val value: U[Double])(implicit val ops: ContainerOps
 
   private val id = TestVariable.newId()
 
-  override def apply(ec: EvaluationContext) = value
+  override def eval(ec: GradientContext) = value
 
   override val logp = Constant(0.0)
 

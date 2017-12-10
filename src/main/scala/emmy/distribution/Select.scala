@@ -27,14 +27,29 @@ trait SelectFactor[U[_], V, S] extends Factor with Node {
       override implicit def vt: Evaluable[ValueOps[Scalaz.Id, Double, Any]] =
         ValueOps(Floating.doubleFloating, ops, null)
 
-      override def apply(ec: EvaluationContext): Scalaz.Id[Double] = {
-        val idx = ec(index)
-        ec(logs(idx))
+      override def eval(ec: GradientContext): Evaluable[Scalaz.Id[Double]] = {
+        val cLogs = logs.map(ec(_))
+        val cIndex = ec(index)
+        ctx => {
+          val idx = cIndex(ctx)
+          cLogs(idx)(ctx)
+        }
       }
 
-      override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]) = {
-        val idx = gc(index)
-        gc(logs(idx), v)
+      override def grad[W[_], T](gc: GradientContext,
+                                 v: Parameter[W, T]) = {
+        val cGrads = logs.map(log => gc(log, v))
+        if (cGrads.forall(_.isEmpty))
+          None
+        else {
+          val cIndex = gc(index)
+          Some { ctx =>
+            val idx = cIndex(ctx)
+            val grad = cGrads(idx)
+            val vOps = v.vt(ctx)
+            grad.map { g => g(ctx) }.getOrElse(vOps.zero)
+          }
+        }
       }
 
       override def toString = s"logp($self)"
@@ -67,14 +82,36 @@ trait Select[U[_], V, S] extends Distribution[U, V, S] {
 
     override implicit def vt: Evaluable[ValueOps[U, V, S]] = observations.head.vt
 
-    override def apply(ec: EvaluationContext) = {
-      val idx = ec(index)
-      ec(observations(idx))
+    override def eval(ec: GradientContext) = {
+      val cObservations = observations.map { ec(_) }
+      val cIndex = ec(index)
+      ctx => {
+        val idx = cIndex(ctx)
+        cObservations(idx)(ctx)
+      }
     }
 
-    override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: Aux[W, T]) = {
-      val idx = gc(index)
-      gc(observations(idx), v)
+    override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]) = {
+      val wOps = v.ops
+      val cGrads = observations.map {
+        gc(_, v)
+      }
+      val cIndex = gc(index)
+      if (cGrads.forall(_.isEmpty)) {
+        None
+      } else {
+        Some { ctx =>
+          val idx = cIndex(ctx)
+          val grad = cGrads(idx)
+          val valT = vt(ctx).forDouble
+          val eVt = v.vt(ctx)
+          grad.map { g =>
+            g(ctx)
+          }.getOrElse {
+            wOps.fill(eVt.shape, valT.zero)
+          }
+        }
+      }
     }
   }
 

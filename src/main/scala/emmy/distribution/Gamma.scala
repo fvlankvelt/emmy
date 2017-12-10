@@ -1,6 +1,6 @@
 package emmy.distribution
 
-import emmy.autodiff.{ ContainerOps, ContinuousVariable, Evaluable, EvaluationContext, Expression, ScalarOps, ValueOps, lgamma, log, sum }
+import emmy.autodiff.{ ContainerOps, ContinuousVariable, Evaluable, GradientContext, Expression, ScalarOps, ValueOps, lgamma, log, sum }
 
 import scalaz.Scalaz.Id
 
@@ -41,14 +41,18 @@ case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, D
     override val so: ScalarOps[U[Double], U[Double]] =
       ScalarOps.liftBoth[U, Double, Double](ScalarOps.doubleOps, ops)
 
-    override def apply(ec: EvaluationContext): U[Double] = {
-      val alphaV = ec(alpha)
-      val betaV = ec(beta)
-      ops.zipMap(alphaV, betaV) {
-        (a, b) ⇒
-          val valueVT = vt(ec).valueVT
-          val g = breeze.stats.distributions.Gamma(valueVT.toDouble(a), 1.0 / valueVT.toDouble(b))
-          g.draw()
+    override def eval(ec: GradientContext): Evaluable[U[Double]] = {
+      val cAlpha = ec(alpha)
+      val cBeta = ec(beta)
+      ctx => {
+        val alphaV = cAlpha(ctx)
+        val betaV = cBeta(ctx)
+        ops.zipMap(alphaV, betaV) {
+          (a, b) ⇒
+            val valueVT = vt(ctx).valueVT
+            val g = breeze.stats.distributions.Gamma(valueVT.toDouble(a), 1.0 / valueVT.toDouble(b))
+            g.draw()
+        }
       }
     }
   }

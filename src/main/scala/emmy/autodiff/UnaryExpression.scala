@@ -11,9 +11,9 @@ trait EvaluableValueFunc[V] {
 
   def name: String
 
-  def apply(ec: EvaluationContext, v: V): V
+  def apply(ec: SampleContext, v: V): V
 
-  def grad(gc: GradientContext, v: V): V
+  def grad(gc: SampleContext, v: V): V
 }
 
 object EvaluableValueFunc {
@@ -21,9 +21,9 @@ object EvaluableValueFunc {
 
     override def name = rf.name
 
-    override def apply(ec: EvaluationContext, v: V) = rf(v)
+    override def apply(ec: SampleContext, v: V) = rf(v)
 
-    override def grad(gc: GradientContext, v: V) = rf.grad(v)
+    override def grad(gc: SampleContext, v: V) = rf.grad(v)
   }
 }
 
@@ -36,9 +36,9 @@ trait UnaryNodeFunc {
 
     override def name: String = fn.name
 
-    override def apply(ec: EvaluationContext, v: V) = fn.apply(ec, v)
+    override def apply(ec: SampleContext, v: V) = fn.apply(ec, v)
 
-    override def grad(gc: GradientContext, v: V) = fn.grad(gc, v)
+    override def grad(gc: SampleContext, v: V) = fn.grad(gc, v)
   }
 
   trait Impl[V] extends EvaluableValueFunc[V]
@@ -74,17 +74,22 @@ case class UnaryExpression[U[_], V, S](
 
   override val parents = Seq(up)
 
-  override def apply(ec: EvaluationContext) = {
+  override def eval(ec: GradientContext) = {
     val value = ec(up)
-    ops.map(value)(v ⇒ rf.apply(ec, v))
+    ctx => {
+      ops.map(value(ctx))(v ⇒ rf.apply(ctx, v))
+    }
   }
 
-  override def grad[W[_], T](gc: GradientContext, v: ContinuousVariable[W, T])(implicit wOps: ContainerOps.Aux[W, T]) = {
-    gc(up, v).map { ug ⇒
-      val opsW = implicitly[ContainerOps[W]]
-      opsW.map(ug) { g ⇒
-        val v = gc(up)
-        so.times(g, ops.map(v)(u ⇒ rf.grad(gc, u)))
+  override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]) = {
+    val wOps = v.ops
+    val value = gc(up)
+    gc(up, v).map { upGrad => ctx => {
+        val ug = upGrad(ctx)
+        val uv = value(ctx)
+        wOps.map(ug) { g ⇒
+          so.times(g, ops.map(uv)(u ⇒ rf.grad(ctx, u)))
+        }
       }
     }
   }
