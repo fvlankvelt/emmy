@@ -76,7 +76,7 @@ case class UnaryExpression[U[_], V, S](
 
   override def eval(ec: GradientContext) = {
     val value = ec(up)
-    ctx => {
+    ctx ⇒ {
       ops.map(value(ctx))(v ⇒ rf.apply(ctx, v))
     }
   }
@@ -84,13 +84,13 @@ case class UnaryExpression[U[_], V, S](
   override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]) = {
     val wOps = v.ops
     val value = gc(up)
-    gc(up, v).map { upGrad => ctx => {
-        val ug = upGrad(ctx)
-        val uv = value(ctx)
-        wOps.map(ug) { g ⇒
-          so.times(g, ops.map(uv)(u ⇒ rf.grad(ctx, u)))
-        }
+    gc(up, v).map { upGrad ⇒ ctx ⇒ {
+      val ug = upGrad(ctx)
+      val uv = value(ctx)
+      wOps.map(ug) { g ⇒
+        so.times(g, ops.map(uv)(u ⇒ rf.grad(ctx, u)))
       }
+    }
     }
   }
 

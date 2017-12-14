@@ -30,24 +30,26 @@ trait SelectFactor[U[_], V, S] extends Factor with Node {
       override def eval(ec: GradientContext): Evaluable[Scalaz.Id[Double]] = {
         val cLogs = logs.map(ec(_))
         val cIndex = ec(index)
-        ctx => {
+        ctx ⇒ {
           val idx = cIndex(ctx)
           cLogs(idx)(ctx)
         }
       }
 
-      override def grad[W[_], T](gc: GradientContext,
-                                 v: Parameter[W, T]) = {
-        val cGrads = logs.map(log => gc(log, v))
+      override def grad[W[_], T](
+        gc: GradientContext,
+        v:  Parameter[W, T]
+      ) = {
+        val cGrads = logs.map(log ⇒ gc(log, v))
         if (cGrads.forall(_.isEmpty))
           None
         else {
           val cIndex = gc(index)
-          Some { ctx =>
+          Some { ctx ⇒
             val idx = cIndex(ctx)
             val grad = cGrads(idx)
             val vOps = v.vt(ctx)
-            grad.map { g => g(ctx) }.getOrElse(vOps.zero)
+            grad.map { g ⇒ g(ctx) }.getOrElse(vOps.zero)
           }
         }
       }
@@ -85,7 +87,7 @@ trait Select[U[_], V, S] extends Distribution[U, V, S] {
     override def eval(ec: GradientContext) = {
       val cObservations = observations.map { ec(_) }
       val cIndex = ec(index)
-      ctx => {
+      ctx ⇒ {
         val idx = cIndex(ctx)
         cObservations(idx)(ctx)
       }
@@ -99,13 +101,14 @@ trait Select[U[_], V, S] extends Distribution[U, V, S] {
       val cIndex = gc(index)
       if (cGrads.forall(_.isEmpty)) {
         None
-      } else {
-        Some { ctx =>
+      }
+      else {
+        Some { ctx ⇒
           val idx = cIndex(ctx)
           val grad = cGrads(idx)
           val valT = vt(ctx).forDouble
           val eVt = v.vt(ctx)
-          grad.map { g =>
+          grad.map { g ⇒
             g(ctx)
           }.getOrElse {
             wOps.fill(eVt.shape, valT.zero)

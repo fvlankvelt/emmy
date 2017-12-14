@@ -15,7 +15,7 @@ case class Multiply[U[_], V, S](
   override def eval(ec: GradientContext) = {
     val cLhs = ec(lhs)
     val cRhs = ec(rhs)
-    ctx => {
+    ctx ⇒ {
       vt(ctx).times(cLhs(ctx), cRhs(ctx))
     }
   }
@@ -27,19 +27,19 @@ case class Multiply[U[_], V, S](
     (gc(lhs, v), gc(rhs, v)) match {
       case (None, None) ⇒ None
       case (Some(leftg), None) ⇒
-        Some { ctx =>
+        Some { ctx ⇒
           wOps.map(leftg(ctx)) { lg ⇒
             so.times(lg, rv(ctx))
           }
         }
       case (None, Some(rightg)) ⇒
-        Some { ctx =>
+        Some { ctx ⇒
           wOps.map(rightg(ctx)) { rg ⇒
             so.times(rg, lv(ctx))
           }
         }
       case (Some(leftg), Some(rightg)) ⇒
-        Some { ctx =>
+        Some { ctx ⇒
           val valT = vt(ctx).forDouble
           wOps.zipMap(leftg(ctx), rightg(ctx)) {
             (lg, rg) ⇒

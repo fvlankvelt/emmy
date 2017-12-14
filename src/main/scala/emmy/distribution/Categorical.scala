@@ -33,7 +33,7 @@ trait CategoricalFactor extends Factor with Node {
       override def eval(ec: GradientContext): Evaluable[Scalaz.Id[Double]] = {
         val cIndex = ec(variable)
         val cThetas = ec(thetas)
-        ctx => {
+        ctx ⇒ {
           val eIndex = cIndex(ctx)
           val eThetas = cThetas(ctx)
           Floating.doubleFloating.log(eThetas(eIndex) / eThetas.sum)
@@ -45,7 +45,7 @@ trait CategoricalFactor extends Factor with Node {
         gc(thetas, v).map { g ⇒
           val cIndex = gc(variable)
           val cThetas = gc(thetas)
-          ctx => {
+          ctx ⇒ {
             val eIndex = cIndex(ctx)
             val eThetas = cThetas(ctx)
             val theta = eThetas(eIndex)
@@ -81,10 +81,10 @@ class CategoricalSample(val thetas: Expression[IndexedSeq, Double, Int])(implici
   override val K: Evaluable[Int] = thetas.vt.map(_.shape)
 
   override def eval(ec: GradientContext): Evaluable[Int] = {
-    ec(thetas).map { eThetas =>
+    ec(thetas).map { eThetas ⇒
       val sumThetas = eThetas.sum
       var draw = Random.nextDouble() * sumThetas
-      for {(theta, idx) ← eThetas.zipWithIndex} {
+      for { (theta, idx) ← eThetas.zipWithIndex } {
         if (theta > draw)
           return idx
         draw -= theta

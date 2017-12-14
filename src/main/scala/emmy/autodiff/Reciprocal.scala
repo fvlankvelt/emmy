@@ -13,7 +13,7 @@ case class Reciprocal[U[_], V, S](
 
   override def eval(ec: GradientContext) = {
     val upstreamValue = ec(upstream)
-    ctx => {
+    ctx ⇒ {
       val lvt = vt(ctx)
       lvt.div(lvt.one, upstreamValue(ctx))
     }
@@ -22,15 +22,14 @@ case class Reciprocal[U[_], V, S](
   override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]) = {
     val wOps = v.ops
     val value = gc(upstream)
-    gc(upstream, v).map { grad ⇒
-      ctx => {
-        val valT = vt(ctx)
-        val valD = valT.forDouble
-        val myval = value(ctx)
-        wOps.map(grad(ctx)) { g ⇒
-          valD.negate(so.div(g, valT.times(myval, myval)))
-        }
+    gc(upstream, v).map { grad ⇒ ctx ⇒ {
+      val valT = vt(ctx)
+      val valD = valT.forDouble
+      val myval = value(ctx)
+      wOps.map(grad(ctx)) { g ⇒
+        valD.negate(so.div(g, valT.times(myval, myval)))
       }
+    }
     }
   }
 

@@ -44,7 +44,7 @@ case class Gamma[U[_], S](alpha: Expression[U, Double, S], beta: Expression[U, D
     override def eval(ec: GradientContext): Evaluable[U[Double]] = {
       val cAlpha = ec(alpha)
       val cBeta = ec(beta)
-      ctx => {
+      ctx ⇒ {
         val alphaV = cAlpha(ctx)
         val betaV = cBeta(ctx)
         ops.zipMap(alphaV, betaV) {

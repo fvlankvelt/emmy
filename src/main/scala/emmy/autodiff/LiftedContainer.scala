@@ -19,7 +19,7 @@ case class LiftedContainer[U[_], V, S](value: U[Expression[Id, V, Any]])(implici
 
   override def eval(ec: GradientContext): Evaluable[U[V]] = {
     val evals = ops.map(value)(_.eval(ec))
-    ctx => ops.map(evals)(_(ctx))
+    ctx ⇒ ops.map(evals)(_(ctx))
   }
 
   /**
@@ -34,7 +34,7 @@ case class LiftedContainer[U[_], V, S](value: U[Expression[Id, V, Any]])(implici
       None
     }
     else {
-      Some { ctx =>
+      Some { ctx ⇒
         val valT = vt(ctx)
         val valWT = v.vt(ctx)
         val eye = ops.eye(valT.shape, 1.0, 0.0)

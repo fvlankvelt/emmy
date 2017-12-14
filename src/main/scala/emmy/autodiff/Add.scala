@@ -15,7 +15,7 @@ case class Add[U[_], V, S](
   override def eval(ec: GradientContext) = {
     val l = ec(lhs)
     val r = ec(rhs)
-    ctx => {
+    ctx ⇒ {
       val valT = vt(ctx)
       valT.plus(l(ctx), r(ctx))
     }
@@ -24,11 +24,11 @@ case class Add[U[_], V, S](
   override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]) = {
     val wOps = v.ops
     (gc(lhs, v), gc(rhs, v)) match {
-      case (None, None) ⇒ None
+      case (None, None)     ⇒ None
       case (Some(lg), None) ⇒ Some(lg)
       case (None, Some(rg)) ⇒ Some(rg)
       case (Some(lg), Some(rg)) ⇒
-        Some { ctx =>
+        Some { ctx ⇒
           val valT = vt(ctx)
           val ring = valT.forDouble
           wOps.zipMap(lg(ctx), rg(ctx)) {
