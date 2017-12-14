@@ -107,6 +107,8 @@ object Floating {
     override def toDouble(x: Double) = x
 
     override def compare(x: Double, y: Double) = x.compareTo(y)
+
+    override def toString: String = "doubleFl"
   }
 
   implicit val intFloating: Floating[Int] = new Floating[Int] {
@@ -158,6 +160,8 @@ object Floating {
     override def toDouble(x: Int) = x
 
     override def compare(x: Int, y: Int) = x.compareTo(y)
+
+    override def toString: String = "intFl"
   }
 
 }

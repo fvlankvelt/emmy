@@ -13,12 +13,11 @@ trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
     value.toString
 }
 
-case class Constant[U[_], V, S](value: Evaluable[U[V]])
-                               (implicit
-                                val fl: Floating[V],
-                                val so: ScalarOps[U[Double], U[V]],
-                                val ops: ContainerOps.Aux[U, S]
-                               )
+case class Constant[U[_], V, S](value: Evaluable[U[V]])(implicit
+    val fl: Floating[V],
+                                                        val so:  ScalarOps[U[Double], U[V]],
+                                                        val ops: ContainerOps.Aux[U, S]
+)
   extends ConstantLike[U, V, S] {
 
   override val vt: Evaluable[ValueOps[U, V, S]] =
@@ -33,8 +32,8 @@ case class Constant[U[_], V, S](value: Evaluable[U[V]])
 object Constant {
 
   def apply[U[_], V, S](value: U[V])(implicit
-                                     fl: Floating[V],
-                                     so: ScalarOps[U[Double], U[V]],
+    fl: Floating[V],
+                                     so:  ScalarOps[U[Double], U[V]],
                                      ops: ContainerOps.Aux[U, S]
   ): Constant[U, V, S] =
     Constant(Evaluable.fromConstant(value))
@@ -44,13 +43,21 @@ object Constant {
   }
 }
 
-case class Parameter[U[_], S](value: Evaluable[U[Double]])
-                             (implicit
-                              fl: Floating[Double],
-                              val so: ScalarOps[U[Double], U[Double]],
-                              val ops: ContainerOps.Aux[U, S]
-                             )
+class Parameter[U[_], S](var v: Evaluable[U[Double]])(implicit
+    fl: Floating[Double],
+                                                      val so:  ScalarOps[U[Double], U[Double]],
+                                                      val ops: ContainerOps.Aux[U, S]
+)
   extends ConstantLike[U, Double, S] {
+
+  override def value = {
+    val self = this
+    ctx ⇒ {
+      val value = v(ctx)
+      //      println(s"Param(${self.hashCode}): $value")
+      value
+    }
+  }
 
   override def visit[R](visitor: Visitor[R]): R = {
     visitor.visitParameter(this)
@@ -68,7 +75,7 @@ case class Parameter[U[_], S](value: Evaluable[U[Double]])
     if (this == v) {
       val value = gc(v)
       val wOps = v.ops
-      Some { ctx =>
+      Some { ctx ⇒
         val valT = vt(ctx)
         val ev = value(ctx)
         val shape = wOps.shapeOf(ev)
@@ -80,4 +87,5 @@ case class Parameter[U[_], S](value: Evaluable[U[Double]])
     }
   }
 
+  override def toString: String = s"param#$hashCode"
 }

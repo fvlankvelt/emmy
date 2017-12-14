@@ -60,7 +60,7 @@ case class AccumulatingExpression[U[_]: ContainerOps, V, S, A](
   override val parents = Seq(up)
 
   override def eval(ec: GradientContext) = {
-    ec(up).map { e =>
+    ec(up).map { e ⇒
       opsU.foldLeft(e)(rf.start)(rf.apply)
     }
   }
@@ -81,24 +81,31 @@ case class AccumulatingExpression[U[_]: ContainerOps, V, S, A](
     val wOps = v.ops
     val upValue = gc(up)
     gc(up, v).map { upGrad ⇒
-      ctx => {
-        val valT = vt(ctx)
-        val ug = upGrad(ctx)
-        implicit val sod = so
-        val valD = valT.forDouble
-        val result = wOps.map(ug) { g ⇒
-          val vg = opsU.zipMap(upValue(ctx), g)((_, _))
-          opsU.foldLeft(vg)((rf.start, valD.zero)) {
-            (acc, x) ⇒
-              val (av, ag) = acc
-              val (xv, xg) = x
-              (
-                rf(av, xv),
-                sod.times(valD.plus(xg, ag), rf.grad(av, xv))
-              )
+      new Evaluable[W[Double]] {
+
+        override def apply(ctx: SampleContext): W[Double] = {
+          val valT = vt(ctx)
+          val ug = upGrad(ctx)
+          implicit val sod = so
+          val valD = valT.forDouble
+          val result = wOps.map(ug) { g ⇒
+            val vg = opsU.zipMap(upValue(ctx), g)((_, _))
+            opsU.foldLeft(vg)((rf.start, valD.zero)) {
+              (acc, x) ⇒
+                val (av, ag) = acc
+                val (xv, xg) = x
+                (
+                  rf(av, xv),
+                  sod.times(valD.plus(xg, ag), rf.grad(av, xv))
+                )
+            }
           }
+          wOps.map(result)(_._2)
         }
-        wOps.map(result)(_._2)
+
+        override def toString: String = {
+          "grad(" + AccumulatingExpression.this.toString + ", " + v + ")"
+        }
       }
     }
   }

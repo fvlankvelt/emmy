@@ -21,6 +21,22 @@ trait NormalFactor[U[_], S] extends Factor with Node {
   }
 }
 
+class UnitNormalSample[U[_], S](implicit
+    val ops: ContainerOps.Aux[U, S],
+                                val so: ScalarOps[U[Double], U[Double]],
+                                val vt: Evaluable[ValueOps[U, Double, S]]
+)
+  extends Expression[U, Double, S] {
+
+  override def eval(ec: GradientContext): Evaluable[U[Double]] = {
+    ctx ⇒
+      {
+        val valueT = vt(ctx)
+        valueT.rnd
+      }
+  }
+}
+
 class NormalSample[U[_], S](
     val mu:    Expression[U, Double, S],
     val sigma: Expression[U, Double, S]
@@ -35,13 +51,15 @@ class NormalSample[U[_], S](
   override val so: ScalarOps[U[Double], U[Double]] =
     ScalarOps.liftBoth[U, Double, Double](ScalarOps.doubleOps, ops)
 
+  private val unit = new UnitNormalSample()(ops, so, vt)
+  private val upstream = mu + unit * sigma
+
   override def eval(ec: GradientContext): Evaluable[U[Double]] = {
-    val cMu = ec(mu)
-    val cSigma = ec(sigma)
-    ctx => {
-      val valueT = vt(ctx)
-      valueT.plus(cMu(ctx), valueT.times(valueT.rnd, cSigma(ctx)))
-    }
+    ec(upstream)
+  }
+
+  override def grad[W[_], T](gc: GradientContext, v: Parameter[W, T]): Gradient[W, U] = {
+    gc(upstream, v)
   }
 
   override def toString: String = {

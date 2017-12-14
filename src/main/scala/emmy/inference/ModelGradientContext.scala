@@ -1,39 +1,58 @@
 package emmy.inference
 
-import emmy.autodiff.ContainerOps.Aux
-import emmy.autodiff.{ CategoricalVariable, ContinuousVariable, Expression, GradientContext, Node, Variable }
+import emmy.autodiff.{ Evaluable, Expression, Gradient, GradientContext, Node, Parameter, SampleContext, Variable }
+import emmy.inference.aevb.AEVBModel.VariablePosterior
 
 import scala.collection.mutable
-import scalaz.Scalaz.Id
 
-class ModelGradientContext(model: Model, deps: Map[Node, Set[Node]] = Map.empty) extends GradientContext {
+class ModelGradientContext(
+    posteriors:   Map[Node, VariablePosterior],
+    dependencies: Map[Node, Set[Node]]         = Map.empty
+)
+  extends GradientContext {
 
-  private val modelSample = model.sample(this)
   private val cache = mutable.HashMap[AnyRef, Any]()
 
-  override def apply[U[_], V, S](n: Expression[U, V, S]): U[V] =
+  override def apply[U[_], V, S](n: Expression[U, V, S]): Evaluable[U[V]] =
     n match {
-      case v: Variable[U, V, S] if v.isInstanceOf[CategoricalVariable] ⇒
-        val value = modelSample.getSampleValue[Id, Int, Any](v.asInstanceOf[CategoricalVariable])
-        cache.getOrElseUpdate(n, value)
-          .asInstanceOf[U[V]]
-      case v: ContinuousVariable[U, S] ⇒
-        cache.getOrElseUpdate(n, modelSample.getSampleValue[U, Double, S](v))
-          .asInstanceOf[U[V]]
+      case v: Variable[U, V, S] if posteriors.contains(v) ⇒
+        val q = posteriors(v).Q.asInstanceOf[Variable[U, V, S]]
+        cache.getOrElseUpdate(n, apply(q)).asInstanceOf[Evaluable[U[V]]]
       case _ ⇒
-        cache.getOrElseUpdate(n, n.apply(this))
-          .asInstanceOf[U[V]]
+        cache.getOrElseUpdate(n, wrap(n.eval(this))).asInstanceOf[Evaluable[U[V]]]
     }
+
+  private def wrap[U[_], V](eval: Evaluable[U[V]]): Evaluable[U[V]] = new Evaluable[U[V]] {
+
+    private var lastContext = -1
+    private var lastValue: Option[U[V]] = None
+
+    override def apply(ec: SampleContext): U[V] = {
+      if (ec.iteration != lastContext) {
+        lastValue = Some(eval(ec))
+        lastContext = ec.iteration
+      }
+      lastValue.get
+    }
+
+  }
 
   override def apply[W[_], U[_], V, T, S](
     n: Expression[U, V, S],
-    v: ContinuousVariable[W, T]
-  )(implicit wOps: Aux[W, T]): Option[W[U[Double]]] = {
-    val eval = deps.get(v).forall {
+    v: Parameter[W, T]
+  ): Gradient[W, U] = {
+    val eval = dependencies.get(v).forall {
       _.contains(n)
     }
     if (eval) {
-      n.grad(this, v)
+      if (posteriors.contains(n)) {
+        val q = posteriors(n).Q
+          .asInstanceOf[Variable[U, V, S]]
+        val g = q.grad(this, v)
+        g
+      }
+      else
+        n.grad(this, v)
     }
     else {
       None

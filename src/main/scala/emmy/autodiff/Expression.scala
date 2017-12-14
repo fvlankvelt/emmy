@@ -61,13 +61,18 @@ object Evaluable {
 
     override def apply(ec: SampleContext): V = value
 
-    override def toString() = {
+    override def toString: String = {
       s"eval($value)"
     }
   }
 
-  implicit def fromFn[V](fn: SampleContext => V) = new Evaluable[V] {
-    override def apply(ec: SampleContext) = fn(ec)
+  implicit def fromFn[V](fn: SampleContext ⇒ V): Evaluable[V] = new Evaluable[V] {
+
+    override def apply(ec: SampleContext): V = fn(ec)
+
+    override def toString: String = {
+      s"eval($fn)"
+    }
   }
 }
 
@@ -77,8 +82,10 @@ trait GradientContext {
 
   def apply[U[_], V, S](n: Expression[U, V, S]): Evaluable[U[V]]
 
-  def apply[W[_], U[_], V, T, S](n: Expression[U, V, S],
-                                 v: Parameter[W, T]): Gradient[W, U]
+  def apply[W[_], U[_], V, T, S](
+    n: Expression[U, V, S],
+    v: Parameter[W, T]
+  ): Gradient[W, U]
 }
 
 trait Expression[U[_], V, S] extends Node {
@@ -93,8 +100,10 @@ trait Expression[U[_], V, S] extends Node {
 
   def eval(ec: GradientContext): Evaluable[U[V]]
 
-  def grad[W[_], T](gc: GradientContext,
-                    v: Parameter[W, T]): Gradient[W, U] = None
+  def grad[W[_], T](
+    gc: GradientContext,
+    v:  Parameter[W, T]
+  ): Gradient[W, U] = None
 
   def unary_-(): Expression[U, V, S] =
     UnaryExpression[U, V, S](this, new EvaluableValueFunc[V] {
@@ -128,7 +137,7 @@ trait Expression[U[_], V, S] extends Node {
 
       override def eval(ec: GradientContext): Evaluable[U[Double]] = {
         val up = self.eval(ec)
-        ctx => {
+        ctx ⇒ {
           val valueOps = self.vt(ctx)
           val upVal = up(ctx)
           val valT = valueOps.valueVT

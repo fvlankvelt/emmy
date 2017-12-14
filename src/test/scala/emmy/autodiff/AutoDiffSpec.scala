@@ -15,13 +15,13 @@ class AutoDiffSpec extends FlatSpec {
 
     override def apply[U[_], V, S](n: Expression[U, V, S]): Evaluable[U[V]] = {
       n match {
-        case v: TestVariable[U, S]       ⇒
+        case v: TestVariable[U, S] ⇒
           v.value.asInstanceOf[U[V]]
 
         case v: ContinuousVariable[U, S] ⇒
           cache.getOrElseUpdate(v, v.vt.map(_.rnd)).asInstanceOf[Evaluable[U[V]]]
 
-        case _                           ⇒
+        case _ ⇒
           n.eval(this)
       }
     }
@@ -34,7 +34,7 @@ class AutoDiffSpec extends FlatSpec {
   private val sc: SampleContext = SampleContext(0, 0)
 
   "AD" should "calculate scalar derivative" in {
-    val x = Parameter[Id, Any](2.0)
+    val x = new Parameter[Id, Any](2.0)
     val y = x * x
     assert(y.eval(gc)(sc) == 4.0)
 
@@ -43,7 +43,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "deal with constants" in {
-    val x = Parameter[Id, Any](0.0)
+    val x = new Parameter[Id, Any](0.0)
     val y = -(x - 1.0) * (x - 1.0) / 2.0
     assert(y.eval(gc)(sc) == -0.5)
 
@@ -52,7 +52,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate vector derivative on List" in {
-    val x = Parameter(List(1.0, 2.0))
+    val x = new Parameter(List(1.0, 2.0))
     val y = x * x
     assert(y.eval(gc)(sc) == List(1.0, 4.0))
 
@@ -61,7 +61,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate derivative of a reciprocal" in {
-    val x = Parameter[Id, Any](2.0)
+    val x = new Parameter[Id, Any](2.0)
     val y = Constant(1.0) / x
     assert(y.eval(gc)(sc) == 0.5)
 
@@ -70,7 +70,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate derivative of a scalar function" in {
-    val x = Parameter[Id, Any](2.0)
+    val x = new Parameter[Id, Any](2.0)
     val y = log(x)
     assert(y.eval(gc)(sc) == scala.math.log(2.0))
 
@@ -79,7 +79,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate derivative of a function applied to a list" in {
-    val x = Parameter(List(1.0, 2.0))
+    val x = new Parameter(List(1.0, 2.0))
     val y = log(x)
     assert(y.eval(gc)(sc) == List(0.0, scala.math.log(2.0)))
 
@@ -88,8 +88,8 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate probability of observation" in {
-    val mu = Parameter[List, Int](List(0.0, 0.0))
-    val sigma = Parameter[List, Int](List(1.0, 1.0))
+    val mu = new Parameter[List, Int](List(0.0, 0.0))
+    val sigma = new Parameter[List, Int](List(1.0, 1.0))
 
     val normal = Normal(mu, sigma)
     val observation = normal.observe(List(1.0, 2.0))
@@ -97,8 +97,8 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "be able to implement linear regression" in {
-//    val a = Normal[Id, Any](0.0, 1.0).sample
-    val a = Parameter[Id, Any](0.0)
+    //    val a = Normal[Id, Any](0.0, 1.0).sample
+    val a = new Parameter[Id, Any](0.0)
     val b = Normal[List, Int](List(0.0, 0.0), List(1.0, 1.0)).sample
     val e = Normal[Id, Any](1.0, 1.0).sample
 
@@ -121,7 +121,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "calculate exp derivative" in {
-    val x = Parameter[Id, Any](1.0)
+    val x = new Parameter[Id, Any](1.0)
     val y = exp(x)
     assert(y.eval(gc)(sc) == scala.math.exp(1.0))
 
@@ -130,7 +130,7 @@ class AutoDiffSpec extends FlatSpec {
   }
 
   it should "derive zero for gradient of constant" in {
-    val x = Parameter[Id, Any](1.0)
+    val x = new Parameter[Id, Any](1.0)
     val y = Constant(2.0)
     val g: Option[_] = y.grad(gc, x)
     assert(g.isEmpty)
