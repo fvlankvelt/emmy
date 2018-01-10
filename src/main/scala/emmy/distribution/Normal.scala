@@ -95,7 +95,7 @@ case class Normal[U[_], S](
       ScalarOps.liftBoth[U, Double, Double](ScalarOps.doubleOps, ops)
 
     override def toString: String = {
-      s"<- N($mu, $sigma)"
+      s"($value <- N($mu, $sigma))"
     }
   }
 

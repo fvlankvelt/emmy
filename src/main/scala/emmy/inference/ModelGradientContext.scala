@@ -1,6 +1,7 @@
 package emmy.inference
 
-import emmy.autodiff.{ Evaluable, Expression, Gradient, GradientContext, Node, Parameter, SampleContext, Variable }
+import breeze.numerics.abs
+import emmy.autodiff.{Evaluable, Expression, Gradient, GradientContext, Node, Parameter, SampleContext, Variable}
 import emmy.inference.aevb.AEVBModel.VariablePosterior
 
 import scala.collection.mutable
@@ -19,10 +20,10 @@ class ModelGradientContext(
         val q = posteriors(v).Q.asInstanceOf[Variable[U, V, S]]
         cache.getOrElseUpdate(n, apply(q)).asInstanceOf[Evaluable[U[V]]]
       case _ ⇒
-        cache.getOrElseUpdate(n, wrap(n.eval(this))).asInstanceOf[Evaluable[U[V]]]
+        cache.getOrElseUpdate(n, wrap(n.eval(this), n.toString)).asInstanceOf[Evaluable[U[V]]]
     }
 
-  private def wrap[U[_], V](eval: Evaluable[U[V]]): Evaluable[U[V]] = new Evaluable[U[V]] {
+  private def wrap[U[_], V](eval: Evaluable[U[V]], name: String): Evaluable[U[V]] = new Evaluable[U[V]] {
 
     private var lastContext = -1
     private var lastValue: Option[U[V]] = None
@@ -30,6 +31,13 @@ class ModelGradientContext(
     override def apply(ec: SampleContext): U[V] = {
       if (ec.iteration != lastContext) {
         lastValue = Some(eval(ec))
+//        println(s"Setting ${name} to ${lastValue.get}")
+        val asDouble = lastValue.get.asInstanceOf[Double]
+        val asStr = asDouble.toString
+        if (asStr == "NaN" || asStr == "Infinity" || abs(asDouble) > 10.0) {
+          if (asStr == "NaN" || asStr == "Infinity")
+            assert(false)
+        }
         lastContext = ec.iteration
       }
       lastValue.get
@@ -49,6 +57,7 @@ class ModelGradientContext(
         val q = posteriors(n).Q
           .asInstanceOf[Variable[U, V, S]]
         val g = q.grad(this, v)
+        println(s"Replacing ${n} by ${q}")
         g
       }
       else

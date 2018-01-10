@@ -1,12 +1,9 @@
 package emmy.inference.aevb
 
-import breeze.linalg.DenseVector
 import breeze.numerics.abs
-import emmy.TestVariable
 import emmy.autodiff._
 import emmy.distribution._
-import emmy.inference.aevb.AEVBModel.{ ParameterHolder, ParameterOptimizer }
-import emmy.inference.{ Model, ModelGradientContext, aevb }
+import emmy.inference.aevb.AEVBModel.ParameterHolder
 import org.scalatest.FlatSpec
 
 import scala.util.Random
@@ -25,12 +22,57 @@ class AEVBModelSpec extends FlatSpec {
   "The AEVB model" should "initialize" in {
     val dist = Normal(0.5, 0.7).sample
     val model = AEVBModel(Seq[Node](dist))
-    val params = model.parameters.map {
-      _.asInstanceOf[ParameterHolder[Id, Double]]
-    }
+    val params = model.variables.toSeq
+      .flatMap(_.parameters)
+      .map {
+        _.asInstanceOf[ParameterHolder[Id, Double]]
+      }
     val es = math.log(0.7)
     assert(abs(params(0).value.get - 0.5) < 0.1)
     assert(abs(params(1).value.get - math.log(0.7)) < 0.05)
+  }
+
+  it should "allow updates" in {
+    def data = {
+      val mu = 0.9
+      for {_ <- Range(0, 20)} yield Random.nextGaussian() * 0.1 + mu
+    }
+
+    val dist = Normal(0.5, 0.7).sample
+    var model = AEVBModel(Seq[Node](dist))
+
+    {
+      val params = model.variables.toSeq
+        .flatMap(_.parameters)
+        .map {
+          _.asInstanceOf[ParameterHolder[Id, Double]]
+        }
+      println(s"New mu: ${params.head.value.get}")
+      assert(abs(params(0).value.get - 0.5) < 0.1)
+      assert(abs(params(1).value.get - math.log(0.7)) < 0.05)
+    }
+
+    for {_ <- Range(0, 10)} {
+      val observations = data.map { x =>
+        Normal(dist, 0.1).observe(x)
+      }
+      model = model.update(observations)
+      val params = model.variables.toSeq
+        .flatMap(_.parameters)
+        .map {
+          _.asInstanceOf[ParameterHolder[Id, Double]]
+        }
+      println(s"New mu: ${params.head.value.get}")
+    }
+    {
+      val params = model.variables.toSeq
+        .flatMap(_.parameters)
+        .map {
+          _.asInstanceOf[ParameterHolder[Id, Double]]
+        }
+      println(s"New mu: ${params.head.value.get}")
+      assert(abs(params(0).value.get - 0.9) < 0.1)
+    }
   }
 
   //

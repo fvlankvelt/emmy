@@ -1,9 +1,10 @@
 package emmy.inference.aevb
 
+import breeze.numerics.abs
 import emmy.autodiff._
-import emmy.distribution.{ Categorical, Factor, Normal, Observation }
+import emmy.distribution.{Categorical, Factor, Normal, Observation}
 import emmy.inference._
-import emmy.inference.aevb.AEVBModel.{ ParameterOptimizer, VariablePosterior }
+import emmy.inference.aevb.AEVBModel.{VariableCollector, VariablePosterior}
 import shapeless.Id
 
 import scala.annotation.tailrec
@@ -105,12 +106,47 @@ object GlobalModel extends Model {
     throw new UnsupportedOperationException("Global priors cannot be initialized with dependencies on variables")
 }
 
-case class AEVBModel(variables: Seq[VariablePosterior], parameters: Seq[ParameterOptimizer]) extends Model {
+case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
 
   override def sample[U[_], V, S](n: Variable[U, V, S], ec: SampleContext): U[V] = ???
 
   override def update[U[_], V, S](observations: Seq[Observation[U, V, S]]) = {
-    this
+    // find new nodes, new variables & their (log) probability
+    val collector = new VariableCollector(variables.map { v => v.O }.toSet, Map.empty)
+    val (_, localVars, localParams, factors, globalDeps) = collector.collect(observations)
+
+    val newGlobal = variables.map { _.next }
+
+    val allVars = newGlobal ++ localVars
+    val logp = (factors ++ allVars.map { _.P })
+        .map {_.logp}
+        .reduceOption(_ + _)
+        .getOrElse(Constant(0.0))
+    val logq = allVars.map {
+      _.Q.logp
+    }.reduceOption(_ + _)
+      .getOrElse(Constant(0.0))
+
+    val newGlobalParams = newGlobal.flatMap(_.parameters)
+    val allParams = newGlobalParams ++ localParams
+    val gc = new ModelGradientContext(
+      allVars.flatMap { v ⇒
+          (v.O: Node, v) :: (v.P: Node, v) :: Nil
+        }.toMap,
+      Map.empty
+    )
+    val ctx = SampleContext(0, 0)
+
+    allParams.foreach(_.initialize((logp - logq) / (observations.size + 1), gc, ctx))
+    for {
+      iter ← Range(1, 1000)
+      ctx = SampleContext(iter, iter)
+      param ← allParams
+    } {
+      param.update(ctx)
+    }
+
+    AEVBModel(newGlobal)
   }
 
   def distributionOf[U[_], S](variable: ContinuousVariable[U, S]): (U[Double], U[Double]) = ???
@@ -120,9 +156,9 @@ object AEVBModel {
 
   trait ParameterOptimizer {
 
-    def initialize(target: Expression[Id, Double, Any], gc: GradientContext): Unit
+    def initialize(target: Expression[Id, Double, Any], gc: GradientContext, ctx: SampleContext): Unit
 
-    def update(ctx: SampleContext): Unit
+    def update(ctx: SampleContext): Double
   }
 
   //@formatter:off
@@ -142,64 +178,125 @@ object AEVBModel {
     extends ParameterOptimizer {
 
     private var valueEv: Evaluable[U[Double]] = null
-    private var gradient: Gradient[U, Id] = None
-    var value: Option[U[Double]] = None
+    private var gradientOptEv: Gradient[U, Id] = None
 
-    def initialize(target: Expression[Id, Double, Any], gc: GradientContext) = {
+    private val mass = 0.9
+
+    var value: Option[U[Double]] = None
+    var momentum: Option[U[Double]] = None
+
+    def initialize(target: Expression[Id, Double, Any], gc: GradientContext, ctx: SampleContext) = {
       valueEv = parameter.eval(gc)
-      gradient = target.grad(gc, parameter)
+      value = Some(valueEv(ctx))
+      gradientOptEv = target.grad(gc, parameter)
     }
 
     def update(ctx: SampleContext) = {
-      if (value.isEmpty) {
-        value = Some(valueEv(ctx))
-      }
+      value = Some(valueEv(ctx))
 
-      gradient.map { gradEval ⇒
+      gradientOptEv.map { gradEval ⇒
         gradEval(ctx)
-      }.foreach { gradValue ⇒
+      }.map { gradValue ⇒
+        val gAsDouble = gradValue.asInstanceOf[Double]
+        println(s"${parameter.hashCode}: ${ctx.iteration} ${value.get} ${gAsDouble}")
+//        if (abs(gAsDouble) > 1E3) {
+//          assert(false)
+//          println(s"Gradient ${parameter.hashCode} is ${gradValue}")
+//        }
+
         val rho = 1.0 / (ctx.iteration + 1)
         val vt = parameter.vt(ctx)
         val ops = parameter.ops
-        value = value.map { v ⇒
-          vt.plus(v, ops.map(gradValue) {
-            _ * rho
-          })
+
+        val newMomentum = if (momentum.isDefined) {
+          ops.zipMap(gradValue, momentum.get) {
+            case (gv, pv) =>
+              pv * mass + gv * (1.0 - mass)
+          }
+        } else {
+          ops.map(gradValue) { _ * (1.0 - mass) }
         }
-        //        println(s"Setting ${parameter.hashCode} to ${value.get}")
+        val delta = ops.map(newMomentum) {
+          _ * rho
+        }
+        value = value.map { v ⇒
+          vt.plus(v, delta)
+        }
+        momentum = Some(newMomentum)
+
+        val asStr = value.get.asInstanceOf[Double].toString
+//        println(s"Setting ${parameter.hashCode} to ${value.get}")
+        if (asStr == "NaN") {
+          assert(asStr != "NaN")
+        }
         parameter.v = value.get
-      }
+        ops.foldLeft(vt.abs(delta))(0.0) { _ + _ }
+      }.getOrElse(0.0)
     }
   }
 
   sealed trait VariablePosterior {
+    // original factor - the one that's used in local samples
+    def O: Factor
+
+    // current approximating distribution - the prior for next batch of observations
     def P: Factor
+
+    // target distribution - approximates the posterior
     def Q: Factor
+
+    def parameters: Seq[ParameterOptimizer]
+
+    def next: VariablePosterior
   }
 
-  case class ContinuousVariablePosterior[U[_], S](variable: Variable[U, Double, S])
+  case class ContinuousVariablePosterior[U[_], S](original: Variable[U, Double, S],
+                                                  variable: Variable[U, Double, S],
+                                                  muStart: Option[Evaluable[U[Double]]] = None,
+                                                  sigmaStart: Option[Evaluable[U[Double]]] = None)
     extends VariablePosterior {
+
+    override val O: Variable[U, Double, S] = original
 
     override val P: Variable[U, Double, S] = variable
 
     private implicit val ops: ContainerOps.Aux[U, S] = variable.ops
-    val mu = new Parameter(variable.vt.map { vo ⇒ vo.zero })(Floating.doubleFloating, variable.so, variable.ops)
-    val sigma = exp(new Parameter(variable.vt.map { vo ⇒ vo.zero })(Floating.doubleFloating, variable.so, variable.ops))
+    val mu = new Parameter(muStart.getOrElse(variable.vt.map { vo ⇒ vo.zero }))(Floating.doubleFloating, variable.so, variable.ops)
+    val sigma = new Parameter(sigmaStart.getOrElse(variable.vt.map { vo ⇒ vo.zero }))(Floating.doubleFloating, variable.so, variable.ops)
 
-    override val Q: Variable[U, Double, S] = Normal(mu, sigma).sample
+    override val Q: Variable[U, Double, S] = Normal[U, S](mu, exp(sigma)).sample
+
+    override val parameters = Seq(
+        ParameterHolder(mu),
+        ParameterHolder(sigma)
+      )
+
+    override def next = {
+      ContinuousVariablePosterior(O, Q, Some(mu.value), Some(sigma.value))
+    }
   }
 
-  case class CategoricalVariablePosterior(variable: CategoricalVariable)
+  case class CategoricalVariablePosterior(original: CategoricalVariable,
+                                          variable: CategoricalVariable,
+                                          thetasStart: Option[Evaluable[IndexedSeq[Double]]] = None)
     extends VariablePosterior {
+
+    override val O: CategoricalVariable = original
 
     override val P: CategoricalVariable = variable
 
     private implicit val ops: ContainerOps.Aux[Id, Any] = variable.ops
-    val thetas = new Parameter[IndexedSeq, Int](variable.K.map { k ⇒
+    val thetas = new Parameter[IndexedSeq, Int](thetasStart.getOrElse(variable.K.map { k ⇒
       Array.fill(k)(1.0 / k): IndexedSeq[Double]
-    })
+    }))
 
     override val Q: CategoricalVariable = Categorical(thetas).sample
+
+    override val parameters = Seq(ParameterHolder(thetas))
+
+    override def next = {
+      CategoricalVariablePosterior(O, Q, Some(thetas.value))
+    }
   }
 
   /**
@@ -212,14 +309,14 @@ object AEVBModel {
     val (_, variables, parameters, factors, globalDeps) = collector.collect(global)
 
     // no optimizing hyper-parameters
-    //    assert(parameters.isEmpty)
+    assert(parameters.isEmpty)
 
-    val logp = variables.map {
+    val logP = variables.map {
       _.P.logp
     }.reduceOption(_ + _)
       .getOrElse(Constant(0.0))
 
-    val logq = variables.map {
+    val logQ = variables.map {
       _.Q.logp
     }.reduceOption(_ + _)
       .getOrElse(Constant(0.0))
@@ -230,18 +327,25 @@ object AEVBModel {
       }.toMap,
       Map.empty
     )
-    parameters.foreach(param ⇒
-      param.initialize(logp - logq, gc))
-    for {
-      iter ← Range(0, 10000)
-      ctx = SampleContext(iter, iter)
-      param ← parameters
-    } {
-      param.update(ctx)
+    val ctx = SampleContext(0, 0)
+
+    val distParams = variables.flatMap(_.parameters)
+    distParams.foreach(_.initialize(logP - logQ, gc, ctx))
+    var iter = 0
+    var delta = 0.0
+    while (iter == 0 || delta > 0.00001) {
+//    while (iter < 10000) {
+      val ctx = SampleContext(iter, iter)
+      delta = (for {
+        param ← distParams
+      } yield {
+        param.update(ctx)
+      }).sum
+      iter = iter + 1
     }
 
     //    val globalSamplers = initialize(builders)
-    AEVBModel(variables.toSeq, parameters.toSeq)
+    AEVBModel(variables)
   }
 
   @tailrec
@@ -334,18 +438,18 @@ object AEVBModel {
 
     override def visitContinuousVariable[U[_], S](v: ContinuousVariable[U, S]): VariableCollector = {
       factors :+= v
-      val posterior = ContinuousVariablePosterior(v)
+      val posterior = ContinuousVariablePosterior(v, v)
       variables += posterior
       deps += v -> stack.toSet
-      collectVars(v.parents ++ posterior.Q.parents)
+      collectVars(v.parents)
     }
 
     override def visitCategoricalVariable(v: CategoricalVariable): VariableCollector = {
       factors :+= v
-      val posterior = CategoricalVariablePosterior(v)
+      val posterior = CategoricalVariablePosterior(v, v)
       variables += posterior
       deps += v -> stack.toSet
-      collectVars(v.parents ++ posterior.Q.parents)
+      collectVars(v.parents)
     }
 
     override def visitNode(n: Node): VariableCollector =
