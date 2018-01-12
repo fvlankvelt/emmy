@@ -66,6 +66,18 @@ case class ValueOps[U[_], V, Shape](
     override def apply(v: U[V]) = ops.map(v)(upstream.apply)
   }
 
+
+  override def softmax = new UnaryValueFunc[U[V]] {
+
+    val name = "softmax"
+
+    private val upstream = valueVT.softmax
+
+    override def grad(v: U[V]) = ops.map(v)(upstream.grad)
+
+    override def apply(v: U[V]) = ops.map(v)(upstream.apply)
+  }
+
   override def sum = new CollectValueFunc[U[V]] {
 
     val name = "sum"

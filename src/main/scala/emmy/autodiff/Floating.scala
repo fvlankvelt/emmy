@@ -14,6 +14,8 @@ trait Floating[V] extends Fractional[V] {
 
   def tanh: UnaryValueFunc[V]
 
+  def softmax: UnaryValueFunc[V]
+
   def sum: CollectValueFunc[V]
 
   def rnd: V
@@ -73,6 +75,17 @@ object Floating {
         1.0 / scala.math.pow(breeze.numerics.cosh(value), 2)
     }
 
+    override def softmax = new UnaryValueFunc[Double] {
+
+      val name = "softmax"
+
+      override def apply(value: Double) =
+        breeze.numerics.log1p(breeze.numerics.exp(value))
+
+      override def grad(value: Double) =
+        1.0 / (1.0 + breeze.numerics.exp(-value))
+    }
+
     override def sum = new CollectValueFunc[Double] {
 
       val name = "sum"
@@ -125,6 +138,8 @@ object Floating {
     override def lgamma = invalidOp("lgamma")
 
     override def tanh = invalidOp("tanh")
+
+    override def softmax = invalidOp("softmax")
 
     override def sum = new CollectValueFunc[Int] {
 

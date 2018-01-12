@@ -60,6 +60,11 @@ object lgamma extends UnaryNodeFunc {
   implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.lgamma)
 }
 
+object softmax extends UnaryNodeFunc {
+
+  implicit def impl[V](implicit numV: Floating[V]): Impl[V] = wrapFunc(numV.softmax)
+}
+
 case class UnaryExpression[U[_], V, S](
     up: Expression[U, V, S],
     rf: EvaluableValueFunc[V]
