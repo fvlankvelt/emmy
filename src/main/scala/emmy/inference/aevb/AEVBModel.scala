@@ -4,10 +4,10 @@ import breeze.numerics.abs
 import emmy.autodiff._
 import emmy.distribution.{Categorical, Factor, Normal, Observation}
 import emmy.inference._
-import emmy.inference.aevb.AEVBModel.{VariableCollector, VariablePosterior}
-import shapeless.Id
+import emmy.inference.aevb.AEVBModel.{ParameterHolder, VariableCollector, VariablePosterior}
 
 import scala.annotation.tailrec
+import scalaz.Scalaz.Id
 
 /*
 class AEVBModel private[AEVBModel](
@@ -137,13 +137,28 @@ case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
     )
     val ctx = SampleContext(0, 0)
 
-    allParams.foreach(_.initialize((logp - logq) / (observations.size + 1), gc, ctx))
-    for {
-      iter ← Range(1, 1000)
-      ctx = SampleContext(iter, iter)
-      param ← allParams
-    } {
-      param.update(ctx)
+    allParams.foreach(_.initialize(logp - logq, gc, ctx))
+    var iter = 1
+    var delta = 0.0
+    while (iter == 1 || delta > 0.00001) {
+      val ctx = SampleContext(iter, iter)
+      delta = (for {
+        param ← allParams
+      } yield {
+        param.update(ctx)
+      }).sum
+
+      // DEBUGGING
+      val params = newGlobal.toSeq
+        .flatMap(_.parameters)
+        .map {
+          _.asInstanceOf[ParameterHolder[Id, Double]]
+        }
+      val mu = params(0).value.get
+      val sigma = Floating.doubleFloating.exp(params(1).value.get)
+      println(s"$iter $mu $sigma")
+
+      iter = iter + 1
     }
 
     AEVBModel(newGlobal)
@@ -174,12 +189,16 @@ object AEVBModel {
    * random variable with respect to the parameter.  This eliminates the (high-variance) score function.
    */
   //@formatter:on
-  case class ParameterHolder[U[_], S](parameter: Parameter[U, S])
+  case class ParameterHolder[U[_], S](parameter: Parameter[U, S], invFisher: Option[Expression[U, Double, S]] = None)
     extends ParameterOptimizer {
 
     private var valueEv: Evaluable[U[Double]] = null
+    private var invFisherEv: Option[Evaluable[U[Double]]] = None
     private var gradientOptEv: Gradient[U, Id] = None
 
+    // scale of the maximum update when inverse fisher is available
+    private val scale = 5.0
+    // mass of the heavy ball when using SGD
     private val mass = 0.9
 
     var value: Option[U[Double]] = None
@@ -187,48 +206,60 @@ object AEVBModel {
 
     def initialize(target: Expression[Id, Double, Any], gc: GradientContext, ctx: SampleContext) = {
       valueEv = parameter.eval(gc)
+      invFisherEv = invFisher.map { _.eval(gc) }
       value = Some(valueEv(ctx))
       gradientOptEv = target.grad(gc, parameter)
+    }
+
+    private def updateMomentum(gradValue: U[Double]): U[Double] = {
+      val ops = parameter.ops
+      val newMomentum = if (momentum.isDefined) {
+        ops.zipMap(gradValue, momentum.get) {
+          case (gv, pv) =>
+            pv * mass + gv * (1.0 - mass)
+        }
+      } else {
+        ops.map(gradValue) {
+          _ * (1.0 - mass)
+        }
+      }
+      momentum = Some(newMomentum)
+      newMomentum
     }
 
     def update(ctx: SampleContext) = {
       value = Some(valueEv(ctx))
 
+      val iF = invFisherEv.map { _(ctx) }
+
       gradientOptEv.map { gradEval ⇒
         gradEval(ctx)
       }.map { gradValue ⇒
-        val gAsDouble = gradValue.asInstanceOf[Double]
-        println(s"${parameter.hashCode}: ${ctx.iteration} ${value.get} ${gAsDouble}")
-//        if (abs(gAsDouble) > 1E3) {
-//          assert(false)
-//          println(s"Gradient ${parameter.hashCode} is ${gradValue}")
-//        }
-
         val rho = 1.0 / (ctx.iteration + 1)
         val vt = parameter.vt(ctx)
         val ops = parameter.ops
 
-        val newMomentum = if (momentum.isDefined) {
-          ops.zipMap(gradValue, momentum.get) {
-            case (gv, pv) =>
-              pv * mass + gv * (1.0 - mass)
-          }
+        // use inverse fisher matrix for natural gradient
+        // fall back to SGD with momentum otherwise
+        val deltaRaw = if (iF.isDefined) {
+          val scaledGrad = ops.map(vt.tanh(
+            ops.map(vt.times(gradValue, iF.get)){_ / scale}
+          )){_ * scale}
+          vt.times(scaledGrad, iF.get)
         } else {
-          ops.map(gradValue) { _ * (1.0 - mass) }
+          updateMomentum(gradValue)
         }
-        val delta = ops.map(newMomentum) {
+
+        // apply stochastic update with decreasing rate (longer history)
+        // to make it more accurate
+        val delta = ops.map(deltaRaw) {
           _ * rho
         }
+
         value = value.map { v ⇒
           vt.plus(v, delta)
         }
-        momentum = Some(newMomentum)
 
-        val asStr = value.get.asInstanceOf[Double].toString
-//        println(s"Setting ${parameter.hashCode} to ${value.get}")
-        if (asStr == "NaN") {
-          assert(asStr != "NaN")
-        }
         parameter.v = value.get
         ops.foldLeft(vt.abs(delta))(0.0) { _ + _ }
       }.getOrElse(0.0)
@@ -260,19 +291,26 @@ object AEVBModel {
 
     override val P: Variable[U, Double, S] = variable
 
-    private implicit val ops: ContainerOps.Aux[U, S] = variable.ops
-    val mu = new Parameter(muStart.getOrElse(variable.vt.map { vo ⇒ vo.zero }))(Floating.doubleFloating, variable.so, variable.ops)
-    val sigma = new Parameter(sigmaStart.getOrElse(variable.vt.map { vo ⇒ vo.zero }))(Floating.doubleFloating, variable.so, variable.ops)
+    implicit val fl = Floating.doubleFloating
+    implicit val so = variable.so
+    implicit val vOps: ContainerOps.Aux[U, S] = variable.ops
 
-    override val Q: Variable[U, Double, S] = Normal[U, S](mu, exp(sigma)).sample
+    val mu = new Parameter(muStart.getOrElse(variable.vt.map { vo ⇒ vo.zero }))
+    val logSigma = new Parameter(sigmaStart.getOrElse(variable.vt.map { vo ⇒ vo.zero }))
+
+    private val sigma = exp(logSigma)
+
+    override val Q: Variable[U, Double, S] = Normal[U, S](mu, sigma).sample
 
     override val parameters = Seq(
-        ParameterHolder(mu),
-        ParameterHolder(sigma)
+        ParameterHolder(mu, Some(sigma)),
+        ParameterHolder(logSigma, Some(Constant(mu.vt.map {
+          vo => vo.div(vo.one, vo.sqrt(vo.fromInt(2)))
+        })))
       )
 
     override def next = {
-      ContinuousVariablePosterior(O, Q, Some(mu.value), Some(sigma.value))
+      ContinuousVariablePosterior(O, Q, Some(mu.value), Some(logSigma.value))
     }
   }
 
@@ -331,9 +369,9 @@ object AEVBModel {
 
     val distParams = variables.flatMap(_.parameters)
     distParams.foreach(_.initialize(logP - logQ, gc, ctx))
-    var iter = 0
+    var iter = 1
     var delta = 0.0
-    while (iter == 0 || delta > 0.00001) {
+    while (iter == 1 || delta > 0.00001 || iter < 1000) {
 //    while (iter < 10000) {
       val ctx = SampleContext(iter, iter)
       delta = (for {
@@ -341,6 +379,17 @@ object AEVBModel {
       } yield {
         param.update(ctx)
       }).sum
+
+      // DEBUGGING
+      val params = variables.toSeq
+        .flatMap(_.parameters)
+        .map {
+          _.asInstanceOf[ParameterHolder[Id, Double]]
+        }
+      val mu = params(0).value.get
+      val sigma = Floating.doubleFloating.exp(params(1).value.get)
+      println(s"$iter $mu $sigma")
+
       iter = iter + 1
     }
 

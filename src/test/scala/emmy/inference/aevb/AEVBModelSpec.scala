@@ -35,7 +35,7 @@ class AEVBModelSpec extends FlatSpec {
   it should "allow updates" in {
     def data = {
       val mu = 0.9
-      for {_ <- Range(0, 20)} yield Random.nextGaussian() * 0.1 + mu
+      for {_ <- Range(0, 100)} yield Random.nextGaussian() * 0.1 + mu
     }
 
     val dist = Normal(0.5, 0.7).sample
@@ -47,9 +47,12 @@ class AEVBModelSpec extends FlatSpec {
         .map {
           _.asInstanceOf[ParameterHolder[Id, Double]]
         }
-      println(s"New mu: ${params.head.value.get}")
-      assert(abs(params(0).value.get - 0.5) < 0.1)
-      assert(abs(params(1).value.get - math.log(0.7)) < 0.05)
+      val mu = params(0).value.get
+      val sigma = Floating.doubleFloating.exp(params(1).value.get)
+      println(s"New mu: ${mu}")
+      println(s"New sigma: ${sigma}")
+      assert(abs(mu - 0.5) < 0.1)
+      assert(abs(sigma - 0.7) < 0.05)
     }
 
     for {_ <- Range(0, 10)} {
@@ -62,7 +65,10 @@ class AEVBModelSpec extends FlatSpec {
         .map {
           _.asInstanceOf[ParameterHolder[Id, Double]]
         }
-      println(s"New mu: ${params.head.value.get}")
+      val mu = params(0).value.get
+      val sigma = Floating.doubleFloating.exp(params(1).value.get)
+      println(s"New mu: ${mu}")
+      println(s"New sigma: ${sigma}")
     }
     {
       val params = model.variables.toSeq
