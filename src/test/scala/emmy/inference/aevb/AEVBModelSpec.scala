@@ -35,7 +35,7 @@ class AEVBModelSpec extends FlatSpec {
   it should "allow updates" in {
     def data = {
       val mu = 0.9
-      for {_ <- Range(0, 100)} yield Random.nextGaussian() * 0.1 + mu
+      for { _ ← Range(0, 100) } yield Random.nextGaussian() * 0.1 + mu
     }
 
     val dist = Normal(0.5, 0.7).sample
@@ -55,8 +55,8 @@ class AEVBModelSpec extends FlatSpec {
       assert(abs(sigma - 0.7) < 0.05)
     }
 
-    for {_ <- Range(0, 10)} {
-      val observations = data.map { x =>
+    for { _ ← Range(0, 10) } {
+      val observations = data.map { x ⇒
         Normal(dist, 0.1).observe(x)
       }
       model = model.update(observations)

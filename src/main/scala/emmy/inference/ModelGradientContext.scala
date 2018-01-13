@@ -1,8 +1,8 @@
 package emmy.inference
 
 import breeze.numerics.abs
-import emmy.autodiff.{Evaluable, Expression, Gradient, GradientContext, Node, Parameter, SampleContext, Variable}
-import emmy.inference.aevb.AEVBModel.VariablePosterior
+import emmy.autodiff.{ Evaluable, Expression, Gradient, GradientContext, Node, Parameter, SampleContext, Variable }
+import emmy.inference.aevb.VariablePosterior
 
 import scala.collection.mutable
 
@@ -31,7 +31,7 @@ class ModelGradientContext(
     override def apply(ec: SampleContext): U[V] = {
       if (ec.iteration != lastContext) {
         lastValue = Some(eval(ec))
-//        println(s"Setting ${name} to ${lastValue.get}")
+        //        println(s"Setting ${name} to ${lastValue.get}")
         val asDouble = lastValue.get.asInstanceOf[Double]
         val asStr = asDouble.toString
         if (asStr == "NaN" || asStr == "Infinity" || abs(asDouble) > 10.0) {

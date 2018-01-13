@@ -66,7 +66,6 @@ case class ValueOps[U[_], V, Shape](
     override def apply(v: U[V]) = ops.map(v)(upstream.apply)
   }
 
-
   override def softmax = new UnaryValueFunc[U[V]] {
 
     val name = "softmax"
