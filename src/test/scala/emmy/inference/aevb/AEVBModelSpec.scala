@@ -3,7 +3,7 @@ package emmy.inference.aevb
 import breeze.numerics.abs
 import emmy.autodiff._
 import emmy.distribution._
-import emmy.inference.aevb.AEVBModel.ParameterHolder
+import emmy.inference.aevb.ParameterHolder
 import org.scalatest.FlatSpec
 
 import scala.util.Random
