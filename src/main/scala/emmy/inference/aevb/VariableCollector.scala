@@ -2,7 +2,6 @@ package emmy.inference.aevb
 
 import emmy.autodiff.{ CategoricalVariable, ContinuousVariable, Node, Parameter, Visitor }
 import emmy.distribution.{ Factor, Observation }
-import emmy.inference.Sampler
 
 class VariableCollector(
     var visited: Set[Node],
@@ -52,11 +51,6 @@ class VariableCollector(
     this
   }
 
-  override def visitSampler(o: Sampler): VariableCollector = {
-    factors :+= o
-    collectVars(o.parents)
-  }
-
   override def visitObservation[U[_], V, S](o: Observation[U, V, S]): VariableCollector = {
     factors :+= o
     collectVars(o.parents)
@@ -76,6 +70,11 @@ class VariableCollector(
     variables += posterior
     deps += v -> stack.toSet
     collectVars(v.parents)
+  }
+
+  override def visitFactor(f: Factor): VariableCollector = {
+    factors :+= f
+    collectVars(f.parents)
   }
 
   override def visitNode(n: Node): VariableCollector =

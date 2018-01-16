@@ -1,27 +1,24 @@
 package emmy.autodiff
 
 import emmy.autodiff.ContainerOps.Aux
-import emmy.distribution.Observation
-import emmy.inference.Sampler
-
-import scalaz.Scalaz.Id
+import emmy.distribution.{ Factor, Observation }
 
 trait Visitor[R] {
 
   def visitParameter[U[_], S](o: Parameter[U, S]): R =
     visitNode(o)
 
-  def visitSampler(o: Sampler): R =
-    visitNode(o)
-
   def visitObservation[U[_], V, S](o: Observation[U, V, S]): R =
-    visitNode(o)
+    visitFactor(o)
 
   def visitContinuousVariable[U[_], S](v: ContinuousVariable[U, S]): R =
-    visitNode(v)
+    visitFactor(v)
 
   def visitCategoricalVariable(v: CategoricalVariable): R =
-    visitNode(v)
+    visitFactor(v)
+
+  def visitFactor(f: Factor): R =
+    visitNode(f)
 
   def visitNode(n: Node): R
 }

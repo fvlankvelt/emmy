@@ -32,13 +32,38 @@ case class ParameterHolder[U[_], S](parameter: Parameter[U, S], invFisher: Optio
   var value: Option[U[Double]] = None
   var momentum: Option[U[Double]] = None
 
-  def initialize(target: Expression[Id, Double, Any], gc: GradientContext, ctx: SampleContext) = {
+  def initialize(
+    logp: Expression[Id, Double, Any],
+    logq: Expression[Id, Double, Any],
+    gc:   GradientContext,
+    ctx:  SampleContext
+  ) = {
     valueEv = parameter.eval(gc)
     invFisherEv = invFisher.map {
       _.eval(gc)
     }
     value = Some(valueEv(ctx))
-    gradientOptEv = target.grad(gc, parameter)
+
+    val delta = logp - logq
+    val deltaEv = delta.eval(gc)
+    val score = logq.grad(gc, parameter)
+    val g = delta.grad(gc, parameter)
+    gradientOptEv = (score, g) match {
+      case (Some(scoreG), Some(gval)) ⇒
+        Some { ctx ⇒
+          val scoreEv = scoreG(ctx)
+          val gvalEv = gval(ctx)
+          val deltaVal = deltaEv(ctx)
+          val vt = parameter.vt(ctx)
+          vt.plus(
+            parameter.ops.map(scoreEv)(s ⇒ s * deltaVal),
+            gvalEv
+          )
+        }
+      case (Some(scoreG), None) ⇒ Some(scoreG)
+      case (None, Some(gval))   ⇒ Some(gval)
+      case (None, None)         ⇒ None
+    }
   }
 
   private def updateMomentum(gradValue: U[Double]): U[Double] = {

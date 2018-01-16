@@ -83,13 +83,18 @@ class CategoricalSample(val thetas: Expression[IndexedSeq, Double, Int])(implici
   override def eval(ec: GradientContext): Evaluable[Int] = {
     ec(thetas).map { eThetas ⇒
       val sumThetas = eThetas.sum
-      var draw = Random.nextDouble() * sumThetas
-      for { (theta, idx) ← eThetas.zipWithIndex } {
-        if (theta > draw)
-          return idx
-        draw -= theta
+      val draw = Random.nextDouble() * sumThetas
+      val (_, index) = eThetas.zipWithIndex.foldLeft((draw, 0)) {
+        case ((curDraw, curIdx), (theta, idx)) ⇒
+          val newDraw = curDraw - theta
+          if (curDraw > 0) {
+            (newDraw, idx)
+          }
+          else {
+            (newDraw, curIdx)
+          }
       }
-      throw new UnsupportedOperationException("Uniform draw is larger than 1.0")
+      index
     }
   }
 

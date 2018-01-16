@@ -1,17 +1,14 @@
 package emmy.inference.aevb
 
 import emmy.autodiff._
-import emmy.distribution.Observation
+import emmy.distribution.Factor
 import emmy.inference._
-
-import scala.annotation.tailrec
-import scalaz.Scalaz.Id
 
 case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
 
   override def sample[U[_], V, S](n: Variable[U, V, S], ec: SampleContext): U[V] = ???
 
-  override def update[U[_], V, S](observations: Seq[Observation[U, V, S]]) = {
+  override def update(observations: Seq[Factor]): AEVBModel = {
     // find new nodes, new variables & their (log) probability
     val collector = new VariableCollector(variables.map { v ⇒ v.O }.toSet, Map.empty)
     val (_, localVars, localParams, factors, globalDeps) = collector.collect(observations)
@@ -38,7 +35,7 @@ case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
     )
     val ctx = SampleContext(0, 0)
 
-    allParams.foreach(_.initialize(logp - logq, gc, ctx))
+    allParams.foreach(_.initialize(logp, logq, gc, ctx))
     var iter = 1
     var delta = 0.0
     while (iter == 1 || delta > 0.00001) {
@@ -67,7 +64,6 @@ case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
     AEVBModel(newGlobal)
   }
 
-  def distributionOf[U[_], S](variable: ContinuousVariable[U, S]): (U[Double], U[Double]) = ???
 }
 
 object AEVBModel {
@@ -103,7 +99,7 @@ object AEVBModel {
     val ctx = SampleContext(0, 0)
 
     val distParams = variables.flatMap(_.parameters)
-    distParams.foreach(_.initialize(logP - logQ, gc, ctx))
+    distParams.foreach(_.initialize(logP, logQ, gc, ctx))
     var iter = 1
     var delta = 0.0
     while (iter == 1 || delta > 0.00001 || iter < 1000) {
@@ -115,52 +111,12 @@ object AEVBModel {
         param.update(ctx)
       }).sum
 
-      // DEBUGGING
-      val params = variables.toSeq
-        .flatMap(_.parameters)
-        .map {
-          _.asInstanceOf[ParameterHolder[Id, Double]]
-        }
-      val mu = params(0).value.get
-      val sigma = Floating.doubleFloating.exp(params(1).value.get)
-      println(s"$iter $mu $sigma")
-
       iter = iter + 1
     }
 
     //    val globalSamplers = initialize(builders)
     AEVBModel(variables)
   }
-
-  @tailrec
-  private def refine(iter: Int, samplers: Iterable[Sampler]): Unit = {
-    val rho = 1.0 / (iter + 1)
-    val sc = SampleContext(iter, iter)
-    val deltas = samplers.map { sampler ⇒
-      sampler.update(sc, rho)
-    }
-
-    val totalDelta = deltas.sum
-    if (totalDelta > 0.0001) {
-      refine(iter + 1, samplers)
-    }
-  }
-
-  /*
-  private[AEVBModel] def initialize(
-                                     builders: Set[SamplerInitializer]
-                                   ): Map[Node, SamplerInitializer] = {
-    for {iter ← 0 until 100} {
-      val ctx = SampleContext(iter, iter)
-      for {builder ← builders} {
-        builder.eval(ctx)
-      }
-    }
-    builders.toSeq.map { b ⇒
-      b.variable -> b
-    }.toMap
-  }
-  */
 
 }
 

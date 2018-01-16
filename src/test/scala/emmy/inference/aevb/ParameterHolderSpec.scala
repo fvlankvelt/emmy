@@ -1,7 +1,7 @@
 package emmy.inference.aevb
 
 import breeze.numerics.abs
-import emmy.autodiff.{Evaluable, Parameter, SampleContext}
+import emmy.autodiff.{Constant, Evaluable, Parameter, SampleContext}
 import emmy.inference.ModelGradientContext
 import org.scalatest.FlatSpec
 
@@ -16,7 +16,7 @@ class ParameterHolderSpec extends FlatSpec {
     val sampler = ParameterHolder(variable)
     val gc = new ModelGradientContext(Map.empty)
     val ctx = SampleContext(0, 0)
-    sampler.initialize(logp, gc, ctx)
+    sampler.initialize(logp, Constant(0.0), gc, ctx)
     for { iter <- Range(0, 100) } {
       sampler.update(SampleContext(iter, iter))
     }

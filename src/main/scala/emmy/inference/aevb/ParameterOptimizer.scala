@@ -6,7 +6,12 @@ import scalaz.Scalaz.Id
 
 trait ParameterOptimizer {
 
-  def initialize(target: Expression[Id, Double, Any], gc: GradientContext, ctx: SampleContext): Unit
+  def initialize(
+    logp: Expression[Id, Double, Any],
+    logq: Expression[Id, Double, Any],
+    gc:   GradientContext,
+    ctx:  SampleContext
+  ): Unit
 
   def update(ctx: SampleContext): Double
 }

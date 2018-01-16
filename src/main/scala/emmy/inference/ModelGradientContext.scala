@@ -32,12 +32,12 @@ class ModelGradientContext(
       if (ec.iteration != lastContext) {
         lastValue = Some(eval(ec))
         //        println(s"Setting ${name} to ${lastValue.get}")
-        val asDouble = lastValue.get.asInstanceOf[Double]
-        val asStr = asDouble.toString
-        if (asStr == "NaN" || asStr == "Infinity" || abs(asDouble) > 10.0) {
-          if (asStr == "NaN" || asStr == "Infinity")
-            assert(false)
-        }
+        //        val asDouble = lastValue.get.asInstanceOf[Double]
+        //        val asStr = asDouble.toString
+        //        if (asStr == "NaN" || asStr == "Infinity" || abs(asDouble) > 10.0) {
+        //          if (asStr == "NaN" || asStr == "Infinity")
+        //            assert(false)
+        //        }
         lastContext = ec.iteration
       }
       lastValue.get

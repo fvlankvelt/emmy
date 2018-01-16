@@ -13,6 +13,10 @@ trait Distribution[U[_], V, S] {
 
 trait Factor extends Node {
 
+  override def visit[R](visitor: Visitor[R]): R = {
+    visitor.visitFactor(this)
+  }
+
   def logp: Expression[Id, Double, Any]
 }
 
