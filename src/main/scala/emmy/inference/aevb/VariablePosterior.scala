@@ -68,10 +68,10 @@ case class CategoricalVariablePosterior(
 
   private implicit val ops: ContainerOps.Aux[Id, Any] = variable.ops
   val thetas = new Parameter[IndexedSeq, Int](thetasStart.getOrElse(variable.K.map { k ⇒
-    Array.fill(k)(1.0 / k): IndexedSeq[Double]
+    Array.fill(k)(0.0): IndexedSeq[Double]
   }))
 
-  override val Q: CategoricalVariable = Categorical(thetas).sample
+  override val Q: CategoricalVariable = Categorical(exp(thetas)).sample
 
   override val parameters = Seq(ParameterHolder(thetas))
 

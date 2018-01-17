@@ -59,13 +59,14 @@ class CategoricalSpec extends FlatSpec {
     }
 
     val model = AEVBModel(Seq(variable: Node))
-    val newModel = model.update(Range(0, 2).map { _ => new TestObservation })
+    val newModel = model.update(Range(0, 1).map { _ => new TestObservation })
     val newVars = newModel.variables
     val params = newVars.head
       .parameters.head
       .asInstanceOf[ParameterHolder[IndexedSeq, Int]]
     val value = params.value.get
-    assert(abs(math.log(value.head / value.sum) - math.log(p_zero)) < 0.2)
+    val thetas = value.map{math.exp}
+    assert(abs(math.log(thetas.head / thetas.sum) - math.log(p_zero)) < 0.15)
   }
 
 }
