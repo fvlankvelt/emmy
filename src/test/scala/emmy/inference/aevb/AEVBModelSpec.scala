@@ -35,7 +35,7 @@ class AEVBModelSpec extends FlatSpec {
   it should "allow updates" in {
     def data = {
       val mu = 0.9
-      for { _ ← Range(0, 10) } yield Random.nextGaussian() * 0.1 + mu
+      for { _ ← Range(0, 100) } yield Random.nextGaussian() * 0.1 + mu
     }
 
     val dist = Normal(0.5, 0.7).sample
