@@ -13,7 +13,7 @@ class ParameterHolderSpec extends FlatSpec {
     val variable = new Parameter[Id, Any](Evaluable.fromConstant(0.0))
     val logp = -(variable - 1.0) * (variable - 1.0) / 2.0
 
-    val sampler = ParameterHolder(variable)
+    val sampler = ScoreFunctionOptimizer(variable)
     val gc = new ModelGradientContext(Map.empty)
     val ctx = SampleContext(0, 0)
     sampler.initialize(logp, Constant(0.0), gc, ctx)

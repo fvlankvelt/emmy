@@ -3,7 +3,7 @@ package emmy.inference.aevb
 import breeze.numerics.abs
 import emmy.autodiff._
 import emmy.distribution._
-import emmy.inference.aevb.ParameterHolder
+import emmy.inference.aevb.NaturalGradientOptimizer
 import org.scalatest.FlatSpec
 
 import scala.util.Random
@@ -25,7 +25,7 @@ class AEVBModelSpec extends FlatSpec {
     val params = model.variables.toSeq
       .flatMap(_.parameters)
       .map {
-        _.asInstanceOf[ParameterHolder[Id, Double]]
+        _.asInstanceOf[NaturalGradientOptimizer[Id, Double]]
       }
     val es = math.log(0.7)
     assert(abs(params(0).value.get - 0.5) < 0.1)
@@ -45,7 +45,7 @@ class AEVBModelSpec extends FlatSpec {
       val params = model.variables.toSeq
         .flatMap(_.parameters)
         .map {
-          _.asInstanceOf[ParameterHolder[Id, Double]]
+          _.asInstanceOf[NaturalGradientOptimizer[Id, Double]]
         }
       val mu = params(0).value.get
       val sigma = Floating.doubleFloating.exp(params(1).value.get)
@@ -63,7 +63,7 @@ class AEVBModelSpec extends FlatSpec {
       val params = model.variables.toSeq
         .flatMap(_.parameters)
         .map {
-          _.asInstanceOf[ParameterHolder[Id, Double]]
+          _.asInstanceOf[NaturalGradientOptimizer[Id, Double]]
         }
       val mu = params(0).value.get
       val sigma = Floating.doubleFloating.exp(params(1).value.get)
@@ -74,7 +74,7 @@ class AEVBModelSpec extends FlatSpec {
       val params = model.variables.toSeq
         .flatMap(_.parameters)
         .map {
-          _.asInstanceOf[ParameterHolder[Id, Double]]
+          _.asInstanceOf[NaturalGradientOptimizer[Id, Double]]
         }
       println(s"New mu: ${params.head.value.get}")
       assert(abs(params(0).value.get - 0.9) < 0.1)

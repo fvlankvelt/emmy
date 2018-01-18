@@ -63,7 +63,7 @@ class CategoricalSpec extends FlatSpec {
     val newVars = newModel.variables
     val params = newVars.head
       .parameters.head
-      .asInstanceOf[ParameterHolder[IndexedSeq, Int]]
+      .asInstanceOf[ScoreFunctionOptimizer[IndexedSeq, Int]]
     val value = params.value.get
     val thetas = value.map{math.exp}
     assert(abs(math.log(thetas.head / thetas.sum) - math.log(p_zero)) < 0.15)

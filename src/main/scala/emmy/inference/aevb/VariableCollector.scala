@@ -47,8 +47,8 @@ class VariableCollector(
   }
 
   override def visitParameter[U[_], S](p: Parameter[U, S]): VariableCollector = {
-    parameters += ParameterHolder(p)
-    this
+//    parameters += ParameterHolder(p)
+    throw new NotImplementedError("Parameter Optimization is not implemented yet")
   }
 
   override def visitObservation[U[_], V, S](o: Observation[U, V, S]): VariableCollector = {

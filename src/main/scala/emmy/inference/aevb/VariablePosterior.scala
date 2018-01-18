@@ -44,10 +44,10 @@ case class ContinuousVariablePosterior[U[_], S](
   override val Q: Variable[U, Double, S] = Normal[U, S](mu, sigma).sample
 
   override val parameters = Seq(
-    ParameterHolder(mu, Some(sigma)),
-    ParameterHolder(logSigma, Some(Constant(mu.vt.map {
+    NaturalGradientOptimizer(mu, sigma),
+    NaturalGradientOptimizer(logSigma, Constant(mu.vt.map {
       vo ⇒ vo.div(vo.one, vo.sqrt(vo.fromInt(2)))
-    })))
+    }))
   )
 
   override def next = {
@@ -73,7 +73,7 @@ case class CategoricalVariablePosterior(
 
   override val Q: CategoricalVariable = Categorical(exp(thetas)).sample
 
-  override val parameters = Seq(ParameterHolder(thetas))
+  override val parameters = Seq(ScoreFunctionOptimizer(thetas))
 
   override def next = {
     CategoricalVariablePosterior(O, Q, Some(thetas.value))
