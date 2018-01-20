@@ -110,6 +110,9 @@ case class NaturalGradientOptimizer[U[_], S](parameter: Parameter[U, S],
   // scale of the maximum update when inverse fisher is available
   private val scale = 5.0
 
+  /**
+    * Gradient only depends on parameter via variable
+    */
   override protected def calculateGradient(logp: Expression[Scalaz.Id, Double, Any], logq: Expression[Scalaz.Id, Double, Any], gc: GradientContext): Gradient[U, Scalaz.Id] = {
     val invFisherEv = invFisher.eval(gc)
     val delta = logp - logq
@@ -137,27 +140,14 @@ case class ScoreFunctionOptimizer[U[_], S](parameter: Parameter[U, S])
   extends GradientBasedOptimizer[U, S] {
 
   override protected def calculateGradient(logp: Expression[Scalaz.Id, Double, Any], logq: Expression[Scalaz.Id, Double, Any], gc: GradientContext): Gradient[U, Scalaz.Id] = {
-    val delta = logp - logq
-    val deltaEv = delta.eval(gc)
-    val score = logq.grad(gc, parameter)
-    val g = delta.grad(gc, parameter)
+    val deltaExpr = logp - logq
+    val deltaEv = deltaExpr.eval(gc)
+    val scoreGradOpt = logq.grad(gc, parameter)
 
-    (score, g) match {
-      case (Some(scoreG), Some(gval)) ⇒
-        Some { ctx ⇒
-          val scoreEv = scoreG(ctx)
-          val gvalEv = gval(ctx)
-          val deltaVal = deltaEv(ctx)
-          val vt = parameter.vt(ctx)
-          vt.plus(
-            parameter.ops.map(scoreEv)(s ⇒ s * deltaVal),
-            gvalEv
-          )
-        }
-
-      case (Some(scoreG), None) ⇒ Some(scoreG)
-      case (None, Some(gval)) ⇒ Some(gval)
-      case (None, None) ⇒ None
+    scoreGradOpt.map { scoreGradEv => ctx =>
+      val scoreGrad = scoreGradEv(ctx)
+      val delta = deltaEv(ctx)
+      parameter.ops.map(scoreGrad){_ * delta}
     }
   }
 
