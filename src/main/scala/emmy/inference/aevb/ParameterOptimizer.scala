@@ -103,34 +103,35 @@ trait GradientBasedOptimizer[U[_], S] extends ParameterOptimizer {
 
 }
 
-case class NaturalGradientOptimizer[U[_], S](parameter: Parameter[U, S],
-                                             invFisher: Expression[U, Double, S])
+case class ReparameterizedOptimizer[U[_], S](
+    parameter:         Parameter[U, S],
+    invFisher:         Expression[U, Double, S]
+)
   extends GradientBasedOptimizer[U, S] {
 
   // scale of the maximum update when inverse fisher is available
   private val scale = 5.0
 
   /**
-    * Gradient only depends on parameter via variable
-    */
+   * Gradient only depends on parameter via variable
+   */
   override protected def calculateGradient(logp: Expression[Scalaz.Id, Double, Any], logq: Expression[Scalaz.Id, Double, Any], gc: GradientContext): Gradient[U, Scalaz.Id] = {
     val invFisherEv = invFisher.eval(gc)
     val delta = logp - logq
     val g = delta.grad(gc, parameter)
-    g.map { gv =>
-      ctx =>
-        val iF = invFisherEv(ctx)
-        val vt = parameter.vt(ctx)
-        val ops = parameter.ops
+    g.map { gv ⇒ ctx ⇒
+      val iF = invFisherEv(ctx)
+      val vt = parameter.vt(ctx)
+      val ops = parameter.ops
 
-        val scaledGrad = ops.map(vt.tanh(
-          ops.map(vt.times(gv(ctx), iF)) {
-            _ / scale
-          }
-        )) {
-          _ * scale
+      val scaledGrad = ops.map(vt.tanh(
+        ops.map(vt.times(gv(ctx), iF)) {
+          _ / scale
         }
-        vt.times(scaledGrad, iF)
+      )) {
+        _ * scale
+      }
+      vt.times(scaledGrad, iF)
     }
   }
 
@@ -144,11 +145,20 @@ case class ScoreFunctionOptimizer[U[_], S](parameter: Parameter[U, S])
     val deltaEv = deltaExpr.eval(gc)
     val scoreGradOpt = logq.grad(gc, parameter)
 
-    scoreGradOpt.map { scoreGradEv => ctx =>
+    scoreGradOpt.map { scoreGradEv ⇒ ctx ⇒
       val scoreGrad = scoreGradEv(ctx)
       val delta = deltaEv(ctx)
-      parameter.ops.map(scoreGrad){_ * delta}
+      parameter.ops.map(scoreGrad) { _ * delta }
     }
+  }
+
+}
+
+case class FunctionOptimizer[U[_], S](parameter: Parameter[U, S])
+  extends GradientBasedOptimizer[U, S] {
+
+  override protected def calculateGradient(target: Expression[Scalaz.Id, Double, Any], ignored: Expression[Scalaz.Id, Double, Any], gc: GradientContext): Gradient[U, Scalaz.Id] = {
+    target.grad(gc, parameter)
   }
 
 }
