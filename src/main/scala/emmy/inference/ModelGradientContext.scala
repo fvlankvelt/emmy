@@ -57,7 +57,7 @@ class ModelGradientContext(
         val q = posteriors(n).Q
           .asInstanceOf[Variable[U, V, S]]
         val g = q.grad(this, v)
-        println(s"Replacing ${n} by ${q}")
+        // println(s"Replacing ${n} by ${q}")
         g
       }
       else

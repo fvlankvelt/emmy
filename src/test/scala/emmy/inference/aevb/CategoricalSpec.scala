@@ -29,8 +29,8 @@ class CategoricalSpec extends FlatSpec {
   }
 
   /**
-    * Verify that categorical variables are sampled correctly in the optimization process.
-    */
+   * Verify that categorical variables are sampled correctly in the optimization process.
+   */
   "The Categorical sampler" should "determine thetas to the exact solution" in {
     val p_zero = 0.87
     val variable = TestCatVariable()
@@ -49,7 +49,7 @@ class CategoricalSpec extends FlatSpec {
 
       override def eval(ec: GradientContext): Evaluable[Double] = {
         ec(variable).map {
-          index => logs(index)
+          index ⇒ logs(index)
         }
       }
     }
@@ -59,13 +59,13 @@ class CategoricalSpec extends FlatSpec {
     }
 
     val model = AEVBModel(Seq(variable: Node))
-    val newModel = model.update(Range(0, 1).map { _ => new TestObservation })
+    val newModel = model.update(Range(0, 1).map { _ ⇒ new TestObservation })
     val newVars = newModel.variables
     val params = newVars.head
       .parameters.head
       .asInstanceOf[ScoreFunctionOptimizer[IndexedSeq, Int]]
     val value = params.value.get
-    val thetas = value.map{math.exp}
+    val thetas = value.map { math.exp }
     assert(abs(math.log(thetas.head / thetas.sum) - math.log(p_zero)) < 0.15)
   }
 
