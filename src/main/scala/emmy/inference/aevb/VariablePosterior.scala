@@ -1,6 +1,6 @@
 package emmy.inference.aevb
 
-import emmy.autodiff.{ CategoricalVariable, Constant, ContainerOps, Evaluable, Floating, Parameter, Variable, exp }
+import emmy.autodiff._
 import emmy.distribution.{ Categorical, Factor, Normal }
 
 import scalaz.Scalaz.Id
@@ -44,10 +44,14 @@ case class ContinuousVariablePosterior[U[_], S](
   override val Q: Variable[U, Double, S] = Normal[U, S](mu, sigma).sample
 
   override val parameters = Seq(
-    NaturalGradientOptimizer(mu, sigma),
-    NaturalGradientOptimizer(logSigma, Constant(mu.vt.map {
+    ReparameterizedOptimizer(mu, sigma),
+    ReparameterizedOptimizer(logSigma, Constant(mu.vt.map {
       vo ⇒ vo.div(vo.one, vo.sqrt(vo.fromInt(2)))
     }))
+  //    ReparameterizedOptimizer(mu, Q, sigma.reciprocal(), sigma),
+  //    ReparameterizedOptimizer(logSigma, Q, (variable - mu) / sigma, Constant(mu.vt.map {
+  //      vo ⇒ vo.div(vo.one, vo.sqrt(vo.fromInt(2)))
+  //    }))
   )
 
   override def next = {

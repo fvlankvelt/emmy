@@ -1,5 +1,6 @@
 package emmy.inference.aevb
 
+import breeze.linalg.DenseVector
 import breeze.numerics.abs
 import emmy.autodiff._
 import emmy.distribution._
@@ -138,11 +139,6 @@ class AEVBModelSpec extends FlatSpec {
   //    assert(abs(sampler.mu - 0.2) < 0.05)
   //  }
   //
-  //  def printVariable[U[_], V, S](model: AEVBModel, name: String, variable: ContinuousVariable[U, S]): Unit = {
-  //    val dist = model.distributionOf(variable)
-  //    println(s"$name: mu = ${dist._1}, sigma = ${dist._2}")
-  //  }
-  //
   //  it should "be able to implement linear regression" in {
   //    // data generation - to be reproduced
   //    val data = {
@@ -182,76 +178,91 @@ class AEVBModelSpec extends FlatSpec {
   //
   //  }
   //
-  //  it should "do categorical regression" in {
-  //    val data = () ⇒ {
-  //      val x = 1.5
-  //      val p = 1.0 / (1.0 + math.exp(x))
-  //      val vec: DenseVector[Double] = DenseVector(p, 1.0 - p)
-  //      val dist = breeze.stats.distributions.Multinomial(vec)
-  //      dist.sample(100).toList
-  //    }
-  //    val testvar = Normal(0.0, 1.0).sample
-  //    val pvar = 1.0 / (1.0 + exp(testvar))
-  //    val multi = Categorical(Vector(pvar, 1.0 - pvar))
-  //
-  //    var model = AEVBModel(Seq[Node](testvar))
-  //    println("Prior model:")
-  //    printVariable(model, "testvar", testvar)
-  //
-  //    for { _ ← 0 until 100 } {
-  //      val observations = data().map { values ⇒ multi.observe(values) }
-  //      val newModel = model.update(observations)
-  //      model = newModel
-  //    }
-  //    println("Posterior model:")
-  //    printVariable(model, "testvar", testvar)
-  //
-  //    val sampler = model.getSampler[Id, Double, Any](testvar)
-  //    assert(abs(sampler.mu - 1.5) < 0.10)
-  //  }
-  //
-  //  it should "infer mixture models" in {
-  //    val data = () ⇒ {
-  //      val mu = Seq(-1.0, 1.0)
-  //      val sigma = Seq(0.5, 0.5)
-  //      val dists = (mu zip sigma).map {
-  //        case (m, s) ⇒
-  //          breeze.stats.distributions.Gaussian(m, s)
-  //      }
-  //      val p = 1.0 / (1.0 + math.exp(0.2))
-  //      val vec: DenseVector[Double] = DenseVector(p, 1.0 - p)
-  //      val dist = breeze.stats.distributions.Multinomial(vec)
-  //      dist.sample(100).map { idx ⇒
-  //        dists(idx).sample()
-  //      }
-  //    }
-  //
-  //    val activation = Normal(0.0, 1.0).sample
-  //    val pvar = 1.0 / (1.0 + exp(activation))
-  //    val multi = Categorical(Vector(pvar, 1.0 - pvar))
-  //
-  //    val mus = Range(0, 2).map(_ ⇒ Normal(0.0, 0.5).sample)
-  //    val clusters = mus.map { m ⇒ Normal(m, 0.5) }
-  //    val result = Select(multi, clusters)
-  //
-  //    var model = AEVBModel((mus: Seq[Node]) :+ activation)
-  //    println("Prior model:")
-  //
-  //    for { _ ← 0 until 10 } {
-  //      val d = data()
-  //      val observations = d.map { x ⇒ result.observe(x) }
-  //      val newModel = model.update(observations)
-  //      model = newModel
-  //      println("Posterior model:")
-  //      printVariable(model, "activation", activation)
-  //      printVariable(model, "mu(0)", mus(0))
-  //      printVariable(model, "mu(1)", mus(1))
-  //    }
-  //    {
-  //      val dists = mus.map { mu ⇒ model.distributionOf(mu) }
-  //      assert(abs(dists(0)._1 + dists(1)._1) < 0.15)
-  //      assert(abs(abs(dists(0)._1 - dists(1)._1) - 2.0) < 0.3)
-  //    }
-  //  }
-  //
+
+  /*
+  def printVariable[U[_], V, S](model: AEVBModel, name: String, variable: ContinuousVariable[U, S]): Unit = {
+    val dist = model.distributionOf(variable)
+    println(s"$name: mu = ${dist._1}, sigma = ${dist._2}")
+  }
+  */
+
+  it should "do categorical regression" in {
+    val data = () ⇒ {
+      val x = 1.5
+      val p = 1.0 / (1.0 + math.exp(x))
+      val vec: DenseVector[Double] = DenseVector(p, 1.0 - p)
+      val dist = breeze.stats.distributions.Multinomial(vec)
+      dist.sample(100).toList
+    }
+    val testvar = Normal(0.0, 1.0).sample
+    val pvar = 1.0 / (1.0 + exp(testvar))
+    val multi = Categorical(Vector(pvar, 1.0 - pvar))
+
+    var model = AEVBModel(Seq[Node](testvar))
+//    println("Prior model:")
+//    printVariable(model, "testvar", testvar)
+
+    for { iter ← 0 until 100 } {
+      val observations = data().map { values ⇒ multi.observe(values) }
+      println(s"Update ${iter}")
+      val newModel = model.update(observations)
+      model = newModel
+    }
+    val mu = model.variables.head
+      .parameters.head
+      .asInstanceOf[ReparameterizedOptimizer[Id, Any]]
+      .value
+    println(s"Obtained mu: ${mu} (expected 1.5)")
+    assert(abs(mu.get - 1.5) < 0.10)
+//    printVariable(model, "testvar", testvar)
+
+//    val sampler = model.getSampler[Id, Double, Any](testvar)
+  }
+
+  it should "infer mixture models" in {
+    val data = () ⇒ {
+      val mu = Seq(-1.0, 1.0)
+      val sigma = Seq(0.5, 0.5)
+      val dists = (mu zip sigma).map {
+        case (m, s) ⇒
+          breeze.stats.distributions.Gaussian(m, s)
+      }
+      val p = 1.0 / (1.0 + math.exp(0.2))
+      val vec: DenseVector[Double] = DenseVector(p, 1.0 - p)
+      val dist = breeze.stats.distributions.Multinomial(vec)
+      dist.sample(100).map { idx ⇒
+        dists(idx).sample()
+      }
+    }
+
+    val activation = Normal(0.0, 1.0).sample
+    val pvar = 1.0 / (1.0 + exp(activation))
+    val multi = Categorical(Vector(pvar, 1.0 - pvar))
+
+    val mus = Range(0, 2).map(_ ⇒ Normal(0.0, 0.5).sample)
+    val clusters = mus.map { m ⇒ Normal(m, 0.5) }
+    val result = Select(multi, clusters)
+
+    var model = AEVBModel((mus: Seq[Node]) :+ activation)
+    println("Prior model:")
+
+    for { _ ← 0 until 10 } {
+      val d = data()
+      val observations = d.map { x ⇒ result.observe(x) }
+      val newModel = model.update(observations)
+      model = newModel
+      println("Posterior model:")
+//      printVariable(model, "activation", activation)
+//      printVariable(model, "mu(0)", mus(0))
+//      printVariable(model, "mu(1)", mus(1))
+    }
+/*
+    {
+      val dists = mus.map { mu ⇒ model.distributionOf(mu) }
+      assert(abs(dists(0)._1 + dists(1)._1) < 0.15)
+      assert(abs(abs(dists(0)._1 - dists(1)._1) - 2.0) < 0.3)
+    }
+*/
+  }
+
 }

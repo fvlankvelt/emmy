@@ -104,8 +104,8 @@ trait GradientBasedOptimizer[U[_], S] extends ParameterOptimizer {
 }
 
 case class ReparameterizedOptimizer[U[_], S](
-    parameter:         Parameter[U, S],
-    invFisher:         Expression[U, Double, S]
+    parameter: Parameter[U, S],
+    invFisher: Expression[U, Double, S]
 )
   extends GradientBasedOptimizer[U, S] {
 
