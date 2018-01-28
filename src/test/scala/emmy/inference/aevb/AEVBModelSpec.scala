@@ -212,7 +212,7 @@ class AEVBModelSpec extends FlatSpec {
       .parameters.head
       .asInstanceOf[ReparameterizedOptimizer[Id, Any]]
       .value
-    println(s"Obtained mu: ${mu} (expected 1.5)")
+    println(s"Obtained mu: ${mu.get} (expected 1.5)")
     assert(abs(mu.get - 1.5) < 0.10)
 //    printVariable(model, "testvar", testvar)
 
@@ -230,7 +230,7 @@ class AEVBModelSpec extends FlatSpec {
       val p = 1.0 / (1.0 + math.exp(0.2))
       val vec: DenseVector[Double] = DenseVector(p, 1.0 - p)
       val dist = breeze.stats.distributions.Multinomial(vec)
-      dist.sample(100).map { idx ⇒
+      dist.sample(1).map { idx ⇒
         dists(idx).sample()
       }
     }
@@ -246,16 +246,30 @@ class AEVBModelSpec extends FlatSpec {
     var model = AEVBModel((mus: Seq[Node]) :+ activation)
     println("Prior model:")
 
-    for { _ ← 0 until 10 } {
+    for { iter ← 0 until 100 } {
       val d = data()
       val observations = d.map { x ⇒ result.observe(x) }
+//      println(s"Update ${iter}")
       val newModel = model.update(observations)
+      /*
+      newModel.variables.map {
+        _.asInstanceOf[ContinuousVariablePosterior[Id, Any]]
+      }.foreach { cvp =>
+        val mu = cvp.parameters.head.parameter
+        val logSigma = cvp.parameters.tail.head.parameter
+        val ctx = SampleContext(0, 0)
+        println(s"Variable: ${cvp.original}")
+        println(s"  mu: ${mu.value(ctx)}")
+        println(s"  sigma: ${math.exp(logSigma.value(ctx))}")
+      }
+      */
       model = newModel
-      println("Posterior model:")
+//      println("Posterior model:")
 //      printVariable(model, "activation", activation)
 //      printVariable(model, "mu(0)", mus(0))
 //      printVariable(model, "mu(1)", mus(1))
     }
+    println(model)
 /*
     {
       val dists = mus.map { mu ⇒ model.distributionOf(mu) }

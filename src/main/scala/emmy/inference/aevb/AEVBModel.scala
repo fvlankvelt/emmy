@@ -26,7 +26,7 @@ case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
       .getOrElse(Constant(0.0))
 
     val newGlobalParams = newGlobal.flatMap(_.parameters)
-    val allParams = newGlobalParams ++ localParams
+    val allParams = newGlobalParams ++ localParams ++ localVars.flatMap { _.parameters }
     val gc = new ModelGradientContext(
       allVars.flatMap { v ⇒
         (v.O: Node, v) :: (v.P: Node, v) :: Nil
