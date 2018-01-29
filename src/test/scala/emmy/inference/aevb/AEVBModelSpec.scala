@@ -199,8 +199,8 @@ class AEVBModelSpec extends FlatSpec {
     val multi = Categorical(Vector(pvar, 1.0 - pvar))
 
     var model = AEVBModel(Seq[Node](testvar))
-//    println("Prior model:")
-//    printVariable(model, "testvar", testvar)
+    //    println("Prior model:")
+    //    printVariable(model, "testvar", testvar)
 
     for { iter ← 0 until 100 } {
       val observations = data().map { values ⇒ multi.observe(values) }
@@ -214,9 +214,9 @@ class AEVBModelSpec extends FlatSpec {
       .value
     println(s"Obtained mu: ${mu.get} (expected 1.5)")
     assert(abs(mu.get - 1.5) < 0.10)
-//    printVariable(model, "testvar", testvar)
+    //    printVariable(model, "testvar", testvar)
 
-//    val sampler = model.getSampler[Id, Double, Any](testvar)
+    //    val sampler = model.getSampler[Id, Double, Any](testvar)
   }
 
   it should "infer mixture models" in {
@@ -249,7 +249,7 @@ class AEVBModelSpec extends FlatSpec {
     for { iter ← 0 until 100 } {
       val d = data()
       val observations = d.map { x ⇒ result.observe(x) }
-//      println(s"Update ${iter}")
+      //      println(s"Update ${iter}")
       val newModel = model.update(observations)
       /*
       newModel.variables.map {
@@ -264,13 +264,13 @@ class AEVBModelSpec extends FlatSpec {
       }
       */
       model = newModel
-//      println("Posterior model:")
-//      printVariable(model, "activation", activation)
-//      printVariable(model, "mu(0)", mus(0))
-//      printVariable(model, "mu(1)", mus(1))
+      //      println("Posterior model:")
+      //      printVariable(model, "activation", activation)
+      //      printVariable(model, "mu(0)", mus(0))
+      //      printVariable(model, "mu(1)", mus(1))
     }
     println(model)
-/*
+    /*
     {
       val dists = mus.map { mu ⇒ model.distributionOf(mu) }
       assert(abs(dists(0)._1 + dists(1)._1) < 0.15)
