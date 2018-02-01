@@ -1,5 +1,6 @@
 package emmy.inference.aevb
 
+import breeze.numerics.sqrt
 import emmy.autodiff._
 import emmy.distribution.Factor
 import emmy.inference._
@@ -60,7 +61,7 @@ case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
     }
     var iter = 1
     var delta = 0.0
-    while (iter == 1 || delta > 0.00001) {
+    while (iter == 1 || delta > 0.001 / sqrt(observations.size)) {
       val ctx = SampleContext(iter, iter)
       delta = (for {
         param ← allParams.keys

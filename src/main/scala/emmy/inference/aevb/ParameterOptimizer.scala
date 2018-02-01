@@ -145,10 +145,17 @@ case class ScoreFunctionOptimizer[U[_], S](parameter: Parameter[U, S])
     val deltaEv = deltaExpr.eval(gc)
     val scoreGradOpt = logq.grad(gc, parameter)
 
-    scoreGradOpt.map { scoreGradEv ⇒ ctx ⇒
-      val scoreGrad = scoreGradEv(ctx)
-      val delta = deltaEv(ctx)
-      parameter.ops.map(scoreGrad) { _ * delta }
+    scoreGradOpt.map { scoreGradEv ⇒ new Evaluable[U[Double]] {
+        var offset: Double = 0.0
+
+        override def apply(ctx: SampleContext): U[Double] = {
+          val scoreGrad = scoreGradEv(ctx)
+          val delta = deltaEv(ctx)
+          val rho = 1.0 / (ctx.iteration + 1)
+          offset = (1.0 - rho) * offset + rho * delta
+          parameter.ops.map(scoreGrad) { _ * (delta - offset) }
+        }
+      }
     }
   }
 
