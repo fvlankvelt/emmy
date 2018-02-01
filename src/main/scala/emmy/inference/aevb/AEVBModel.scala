@@ -10,23 +10,27 @@ case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
 
   override def update(observations: Seq[Factor]): AEVBModel = {
     // find new nodes, new variables & their (log) probability
-    val collector = new VariableCollector(variables.map { v ⇒ v.O }.toSet, Map.empty)
+    val collector = new VariableCollector(variables.map { v ⇒ v.O }.toSet)
     val (_, localVars, localParams, factors, globalDeps) = collector.collect(observations)
 
     val newGlobal = variables.map { _.next }
 
     val allVars = newGlobal ++ localVars
-    val logp = (factors ++ allVars.map { _.P })
-      .map { _.logp }
-      .reduceOption(_ + _)
-      .getOrElse(Constant(0.0))
-    val logq = allVars.map {
-      _.Q.logp
-    }.reduceOption(_ + _)
-      .getOrElse(Constant(0.0))
 
-    val newGlobalParams = newGlobal.flatMap(_.parameters)
-    val allParams = newGlobalParams ++ localParams ++ localVars.flatMap { _.parameters }
+    val logpByFactor = (factors ++ allVars.map { _.P })
+      .map { f ⇒ f -> f.logp }
+      .toMap
+
+    val varParams = allVars.flatMap { p ⇒
+      p.parameters.map { param ⇒
+        param -> Some(p)
+      }
+    }.toMap[ParameterOptimizer, Option[VariablePosterior]]
+
+    val allParams = localParams.map { p ⇒
+      p -> None
+    }.toMap ++ varParams
+
     val gc = new ModelGradientContext(
       allVars.flatMap { v ⇒
         (v.O: Node, v) :: (v.P: Node, v) :: Nil
@@ -35,13 +39,31 @@ case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
     )
     val ctx = SampleContext(0, 0)
 
-    allParams.foreach(_.initialize(logp, logq, gc, ctx))
+    allParams.foreach {
+      case (p, Some(v)) ⇒
+        val blanket = collector.descendants(v.O) + v.P
+        val varLogp = blanket.map { a ⇒
+          logpByFactor(a)
+        }.reduceOption(_ + _)
+          .getOrElse(Constant(0.0))
+        val varLogq = v.Q.logp
+        p.initialize(varLogp, varLogq, gc, ctx)
+
+      case (p, _) ⇒
+        val varLogp = (factors.map { _.logp } ++ allVars.map { _.P.logp })
+          .reduceOption(_ + _)
+          .getOrElse(Constant(0.0))
+        val varLogq = allVars.map { _.Q.logp }
+          .reduceOption(_ + _)
+          .getOrElse(Constant(0.0))
+        p.initialize(varLogp, varLogq, gc, ctx)
+    }
     var iter = 1
     var delta = 0.0
     while (iter == 1 || delta > 0.00001) {
       val ctx = SampleContext(iter, iter)
       delta = (for {
-        param ← allParams
+        param ← allParams.keys
       } yield {
         param.update(ctx)
       }).sum
@@ -74,8 +96,8 @@ object AEVBModel {
   def apply(global: Seq[Node]): AEVBModel = {
 
     // find new nodes, new variables & their (log) probability
-    val collector = new VariableCollector(Set.empty, Map.empty)
-    val (_, variables, parameters, factors, globalDeps) = collector.collect(global)
+    val collector = new VariableCollector(Set.empty)
+    val (_, variables, parameters, _, _) = collector.collect(global)
 
     // no optimizing hyper-parameters
     assert(parameters.isEmpty)

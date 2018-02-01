@@ -50,36 +50,25 @@ class AEVBModelSpec extends FlatSpec {
         }
       val mu = params(0).value.get
       val sigma = Floating.doubleFloating.exp(params(1).value.get)
-      println(s"New mu: ${mu}")
-      println(s"New sigma: ${sigma}")
+      println(s"Initial mu: ${mu}")
+      println(s"Initial sigma: ${sigma}")
       assert(abs(mu - 0.5) < 0.1)
       assert(abs(sigma - 0.7) < 0.05)
     }
 
-    for { _ ← Range(0, 10) } {
-      val observations = data.map { x ⇒
-        Normal(dist, 0.1).observe(x)
+    val observations = data.map { x ⇒
+      Normal(dist, 0.1).observe(x)
+    }
+    model = model.update(observations)
+    val params = model.variables.toSeq
+      .flatMap(_.parameters)
+      .map {
+        _.asInstanceOf[ReparameterizedOptimizer[Id, Double]]
       }
-      model = model.update(observations)
-      val params = model.variables.toSeq
-        .flatMap(_.parameters)
-        .map {
-          _.asInstanceOf[ReparameterizedOptimizer[Id, Double]]
-        }
-      val mu = params(0).value.get
-      val sigma = Floating.doubleFloating.exp(params(1).value.get)
-      println(s"New mu: ${mu}")
-      println(s"New sigma: ${sigma}")
-    }
-    {
-      val params = model.variables.toSeq
-        .flatMap(_.parameters)
-        .map {
-          _.asInstanceOf[ReparameterizedOptimizer[Id, Double]]
-        }
-      println(s"New mu: ${params.head.value.get}")
-      assert(abs(params(0).value.get - 0.9) < 0.1)
-    }
+    val mu = params(0).value.get
+    //      val sigma = Floating.doubleFloating.exp(params(1).value.get)
+    println(s"New mu: ${mu}")
+    assert(abs(mu - 0.9) < 0.1)
   }
 
   //
@@ -230,7 +219,7 @@ class AEVBModelSpec extends FlatSpec {
       val p = 1.0 / (1.0 + math.exp(0.2))
       val vec: DenseVector[Double] = DenseVector(p, 1.0 - p)
       val dist = breeze.stats.distributions.Multinomial(vec)
-      dist.sample(1).map { idx ⇒
+      dist.sample(10).map { idx ⇒
         dists(idx).sample()
       }
     }
@@ -246,15 +235,14 @@ class AEVBModelSpec extends FlatSpec {
     var model = AEVBModel((mus: Seq[Node]) :+ activation)
     println("Prior model:")
 
-    for { iter ← 0 until 100 } {
+    for { iter ← 0 until 10 } {
       val d = data()
       val observations = d.map { x ⇒ result.observe(x) }
       //      println(s"Update ${iter}")
       val newModel = model.update(observations)
-      /*
       newModel.variables.map {
         _.asInstanceOf[ContinuousVariablePosterior[Id, Any]]
-      }.foreach { cvp =>
+      }.foreach { cvp ⇒
         val mu = cvp.parameters.head.parameter
         val logSigma = cvp.parameters.tail.head.parameter
         val ctx = SampleContext(0, 0)
@@ -262,7 +250,6 @@ class AEVBModelSpec extends FlatSpec {
         println(s"  mu: ${mu.value(ctx)}")
         println(s"  sigma: ${math.exp(logSigma.value(ctx))}")
       }
-      */
       model = newModel
       //      println("Posterior model:")
       //      printVariable(model, "activation", activation)
