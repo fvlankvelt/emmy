@@ -35,6 +35,7 @@ class CategoricalSpec extends FlatSpec {
     val p_zero = 0.87
     val variable = TestCatVariable()
     val observationLogp = new Expression[Id, Double, Any] {
+
       override implicit val ops: Aux[Scalaz.Id, Shape] =
         ContainerOps.idOps
 
@@ -55,6 +56,9 @@ class CategoricalSpec extends FlatSpec {
     }
 
     class TestObservation extends Factor {
+
+      override val parents = Seq(variable)
+
       override def logp: Expression[Scalaz.Id, Double, Any] = observationLogp
     }
 
