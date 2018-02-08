@@ -137,6 +137,12 @@ case class ReparameterizedOptimizer[U[_], S](
 
 }
 
+/**
+ * Use Rao-Blackwell to calculate gradient only on the markov blanket,
+ * with control variate to reduce variance of the gradient.
+ * See
+ * "Black Box Variational Inference", Ranganath, Gerrish and Blei (2014) [https://arxiv.org/abs/1401.0118]
+ */
 case class ScoreFunctionOptimizer[U[_], S](parameter: Parameter[U, S])
   extends GradientBasedOptimizer[U, S] {
 
@@ -145,15 +151,28 @@ case class ScoreFunctionOptimizer[U[_], S](parameter: Parameter[U, S])
     val deltaEv = deltaExpr.eval(gc)
     val scoreGradOpt = logq.grad(gc, parameter)
 
-    scoreGradOpt.map { scoreGradEv ⇒ new Evaluable[U[Double]] {
+    scoreGradOpt.map { scoreGradEv ⇒
+      new Evaluable[U[Double]] {
+
+        var weight: Double = 0.0
         var offset: Double = 0.0
 
         override def apply(ctx: SampleContext): U[Double] = {
           val scoreGrad = scoreGradEv(ctx)
           val delta = deltaEv(ctx)
-          val rho = 1.0 / (ctx.iteration + 1)
-          offset = (1.0 - rho) * offset + rho * delta
-          parameter.ops.map(scoreGrad) { _ * (delta - offset) }
+          val rho = 1.0 / math.sqrt(ctx.iteration + 1)
+          val norm = parameter.ops.foldLeft(scoreGrad)(0.0) {
+            case (cur, g) ⇒ cur + g * g
+          }
+          weight = (1.0 - rho) * weight + rho * norm
+          offset = (1.0 - rho) * offset + rho * delta * norm
+          val correction = if (weight < 1e-12) {
+            0.0
+          }
+          else {
+            offset / weight
+          }
+          parameter.ops.map(scoreGrad) { _ * (delta - correction) }
         }
       }
     }
