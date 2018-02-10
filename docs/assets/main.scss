@@ -33,7 +33,10 @@ $menu-width: 200px;
     position: absolute;
     top: 12px;
     right: auto;
-    left: $spacing-unit / 2;
+
+    label[for="nav-trigger"] {
+      left: $spacing-unit / 2;
+    }
 
     .menu-wrapper {
       left: -$menu-width;
