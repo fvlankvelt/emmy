@@ -154,7 +154,7 @@ case class ScoreFunctionOptimizer[U[_], S](parameter: Parameter[U, S])
     scoreGradOpt.map { scoreGradEv ⇒
       new Evaluable[U[Double]] {
 
-        var weight: Double = 0.0
+        var weight: Double = 1.0
         var offset: Double = 0.0
 
         override def apply(ctx: SampleContext): U[Double] = {
