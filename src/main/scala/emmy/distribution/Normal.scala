@@ -76,6 +76,18 @@ case class Normal[U[_], S](
   override def sample: ContinuousVariable[U, S] =
     new NormalSample(mu, sigma)
 
+  def factor(v: Expression[U, Double, S]) = {
+    val self = this
+    new NormalFactor[U, S] {
+
+      override val mu: Expression[U, Double, S] = self.mu
+
+      override val sigma: Expression[U, Double, S] = self.sigma
+
+      override val variable: Expression[U, Double, S] = v
+    }
+  }
+
   override def observe(data: U[Double]): Observation[U, Double, S] =
     new NormalObservation(mu, sigma, data)
 
