@@ -1,5 +1,7 @@
 package emmy.autodiff
 
+import emmy.autodiff.ContainerOps.Aux
+
 import scalaz.Scalaz.Id
 
 trait ConstantLike[U[_], V, S] extends Expression[U, V, S] {
@@ -56,6 +58,20 @@ class Parameter[U[_], S](var v: Evaluable[U[Double]])(implicit
       val value = v(ctx)
       //      println(s"Param(${self.hashCode}): $value")
       value
+    }
+  }
+
+  def fix: Expression[U, Double, S] = {
+    val self = this
+    new ConstantLike[U, Double, S] {
+
+      override def value: Evaluable[U[Double]] = self.value
+
+      override implicit val ops: Aux[U, Shape] = self.ops
+
+      override implicit val so: ScalarOps[U[Double], U[Double]] = self.so
+
+      override implicit def vt: Evaluable[ValueOps[U, Double, S]] = self.vt
     }
   }
 

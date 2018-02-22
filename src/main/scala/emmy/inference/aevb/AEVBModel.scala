@@ -47,14 +47,14 @@ case class AEVBModel(variables: Set[VariablePosterior]) extends Model {
           logpByFactor(a)
         }.reduceOption(_ + _)
           .getOrElse(Constant(0.0))
-        val varLogq = v.Q.logp
+        val varLogq = v.logQ
         p.initialize(varLogp, varLogq, gc, ctx)
 
       case (p, _) ⇒
         val varLogp = (factors.map { _.logp } ++ allVars.map { _.P.logp })
           .reduceOption(_ + _)
           .getOrElse(Constant(0.0))
-        val varLogq = allVars.map { _.Q.logp }
+        val varLogq = allVars.map { _.logQ }
           .reduceOption(_ + _)
           .getOrElse(Constant(0.0))
         p.initialize(varLogp, varLogq, gc, ctx)
@@ -109,7 +109,7 @@ object AEVBModel {
       .getOrElse(Constant(0.0))
 
     val logQ = variables.map {
-      _.Q.logp
+      _.logQ
     }.reduceOption(_ + _)
       .getOrElse(Constant(0.0))
 

@@ -15,6 +15,8 @@ sealed trait VariablePosterior {
   // target distribution - approximates the posterior
   def Q: Factor
 
+  def logQ: Expression[Id, Double, Any] = Q.logp
+
   def parameters: Seq[ParameterOptimizer]
 
   def next: VariablePosterior
@@ -41,7 +43,9 @@ case class ContinuousVariablePosterior[U[_], S](
 
   private val sigma = exp(logSigma)
 
-  override val Q: Variable[U, Double, S] = Normal[U, S](mu, sigma).sample
+  override val Q: Variable[U, Double, S] = Normal[U, S](mu, exp(logSigma)).sample
+
+  override val logQ = Normal[U, S](mu.fix, exp(logSigma.fix)).factor(Q).logp
 
   override val parameters = Seq(
     ReparameterizedOptimizer(mu, sigma),
